@@ -1,23 +1,52 @@
 #pragma once
 
-#include <vpp/vk.hpp>
 #include <vpp/fwd.hpp>
-#include <vpp/resource.hpp>
-#include <vpp/memory.hpp>
-#include <vpp/shader.hpp>
 #include <vpp/pipeline.hpp>
+#include <vpp/utility/range.hpp>
+#include <vpp/vulkan/structs.hpp>
 
-#include <memory>
+#include <vector>
 
 namespace vpp
 {
 
-class GraphicsPipeline : public Pipeline
+//TODO: something about derivates when copying builder.
+
+///Class to easier create vulkan graphics pipelines.
+///Note that objects of this class can be copied, but this will not duplicate the
+///undeerlaying shader modules. So if a pipelineBuilder owns a shader module, its copies
+///(which still reference those modules) shall not be used to create a pipeline after
+///the original goes out of scope.
+class GraphicsPipelineBuilder
 {
 public:
-	class StatesCreateInfo
+	GraphicsPipelineBuilder() = default;
+	GraphicsPipelineBuilder(const Device& dev, vk::RenderPass rp, unsigned int xsubpass = 0);
+	~GraphicsPipelineBuilder() = default;
+
+	GraphicsPipelineBuilder(const GraphicsPipelineBuilder& other);
+	GraphicsPipelineBuilder& operator=(const GraphicsPipelineBuilder& other);
+
+	Pipeline build(vk::PipelineCache cache = {});
+	vk::GraphicsPipelineCreateInfo parse();
+
+public:
+	ShaderProgram shader;
+	vk::RenderPass renderPass {};
+	unsigned int subpass {};
+
+	vk::PipelineLayout layout;
+	std::vector<VertexBufferLayout> vertexBufferLayouts;
+
+	vk::PipelineCreateFlags flags {};
+	std::vector<vk::DynamicState> dynamicStates;
+
+	struct
 	{
-	public:
+		std::vector<vk::PipelineColorBlendAttachmentState> blendAttachments;
+		std::vector<vk::Viewport> viewports;
+		std::vector<vk::Rect2D> scissors;
+
 		vk::PipelineInputAssemblyStateCreateInfo inputAssembly;
 		vk::PipelineTessellationStateCreateInfo tessellation;
 		vk::PipelineViewportStateCreateInfo viewport;
@@ -25,41 +54,25 @@ public:
 		vk::PipelineMultisampleStateCreateInfo multisample;
 		vk::PipelineDepthStencilStateCreateInfo depthStencil;
 		vk::PipelineColorBlendStateCreateInfo colorBlend;
+	} states;
 
-	public:
-		std::vector<vk::PipelineColorBlendAttachmentState> blendAttachments_;
-		std::vector<vk::Viewport> viewports_;
-		std::vector<vk::Rect2D> scissors_;
-
-	public:
-		StatesCreateInfo() = default;
-		StatesCreateInfo(const vk::Viewport& viewport); //default initialized states
-	};
-
-	struct CreateInfo
-	{
-		std::vector<DescriptorSetLayout*> descriptorSetLayouts;
-		std::vector<VertexBufferLayout*> vertexBufferLayouts;
-		std::vector<vk::DynamicState> dynamicStates;
-		std::vector<vk::PushConstantRange> pushConstantRanges;
-
-		vk::RenderPass renderPass;
-		ShaderProgram shader;
-
-		vk::PipelineCreateFlags flags {};
-		StatesCreateInfo states {};
-	};
-
-public:
-	GraphicsPipeline() = default;
-	GraphicsPipeline(const Device& device, const CreateInfo& createInfo);
-	~GraphicsPipeline() = default;
-
-	GraphicsPipeline(GraphicsPipeline&& other) noexcept : Pipeline(std::move(other)) {}
-	GraphicsPipeline& operator=(GraphicsPipeline&& other) noexcept
-		{ Pipeline::operator=(std::move(other)); return *this; }
-
-	void init(const Device& context, const CreateInfo& createInfo);
+protected:
+	vk::PipelineVertexInputStateCreateInfo vertexInfo_;
+	vk::PipelineDynamicStateCreateInfo dynamicState_;
+	std::vector<vk::PipelineShaderStageCreateInfo> stageInfos_;
+	std::vector<vk::VertexInputBindingDescription> bindingDescriptions_;
+	std::vector<vk::VertexInputAttributeDescription> attributeDescriptions_;
 };
+
+///\{
+///Create multiple vulkan graphic pipelines at once.
+///Might be more efficient than constructing them individually.
+std::vector<Pipeline> createGraphicsPipelines(const Device& dev,
+	const Range<vk::GraphicsPipelineCreateInfo>& infos, vk::PipelineCache cache = {});
+
+std::vector<Pipeline> createGraphicsPipelines(
+	const Range<std::reference_wrapper<GraphicsPipelineBuilder>>& builder,
+	vk::PipelineCache cache = {});
+///\}
 
 }

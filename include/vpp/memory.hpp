@@ -1,6 +1,5 @@
 #pragma once
 
-#include <vpp/vk.hpp>
 #include <vpp/fwd.hpp>
 #include <vpp/resource.hpp>
 #include <vpp/utility/allocation.hpp>
@@ -15,6 +14,8 @@ namespace vpp
 
 ///Represents a mapped range of a vulkan DeviceMemory.
 ///There shall never be more than one MemoryMap object for on DeviceMemory object.
+///The MemoryMap class is usually never used directly, but rather accessed through a
+///MemoryMapView.
 class MemoryMap : public ResourceReference<MemoryMap>
 {
 public:
@@ -23,18 +24,19 @@ public:
 	~MemoryMap();
 
 	MemoryMap(MemoryMap&& other) noexcept;
-	MemoryMap& operator=(MemoryMap&& other) noexcept;
+	MemoryMap& operator=(MemoryMap other) noexcept;
 
 	///Might remaps the mapped range to assure it also includes the given allocation.
 	void remap(const Allocation& allocation);
 
 	///Makes sure the mapped data is visibile on the device.
-	///Not needed when memory is coherent, look at vkFlushMappedMemoryRanges.
-	void flushRanges() const;
+	///If memory is coherent, this function will have no effect.
+	void flush() const;
 
 	///Reloads the device memory into mapped memory, i.e. makes sure writes by the device
-	//are made visible. Not needed when memory is coherent, look at vkInvalidateMappedMemoryRanges.
-	void invalidateRanges() const;
+	///are made visible.
+	///If the memory is coherent, this function will have no effect.
+	void reload() const;
 
 	const vk::DeviceMemory& vkMemory() const;
 	const Allocation& allocation() const { return allocation_; }
@@ -42,9 +44,9 @@ public:
 	std::size_t size() const { return allocation().size; }
 	std::uint8_t* ptr() const { return static_cast<std::uint8_t*>(ptr_); }
 	const DeviceMemory& memory() const { return *memory_; }
-	bool coherent() const; 
+	bool coherent() const;
 
-	vk::MappedMemoryRange mappedMemoryRange() const { return {vkMemory(), offset(), size()}; };
+	vk::MappedMemoryRange mappedMemoryRange() const;
 
 	const DeviceMemory& resourceRef() const { return *memory_; }
 	friend void swap(MemoryMap& a, MemoryMap& b) noexcept;
@@ -79,12 +81,12 @@ public:
 	///Makes sure the mapped data is visibile on the device.
 	///Not needed when memory is coherent, look at vkFlushMappedMemoryRanges.
 	///Can be checked with coherent().
-	void flushRanges() const;
+	void flush() const; //XXX: raname flush?
 
 	///Reloads the device memory into mapped memory, i.e. makes sure writes by the device
 	///are made visible. Not needed when memory is coherent, look at vkInvalidateMappedMemoryRanges.
 	///Can be checked with coherent().
-	void invalidateRanges() const;
+	void reload() const; //XXX: rename invalidte/reload?
 
 	MemoryMap& memoryMap() const { return *memoryMap_; }
 	const DeviceMemory& memory() const { return memoryMap().memory(); }
@@ -95,7 +97,7 @@ public:
 	std::uint8_t* ptr() const;
 	bool coherent() const;
 
-	vk::MappedMemoryRange mappedMemoryRange() const { return {vkMemory(), offset(), size()}; };
+	vk::MappedMemoryRange mappedMemoryRange() const;
 
 	const MemoryMap& resourceRef() const { return *memoryMap_; }
 	friend void swap(MemoryMapView& a, MemoryMapView& b) noexcept;
@@ -105,13 +107,14 @@ protected:
 	Allocation allocation_ {};
 };
 
-
 ///Specifies the different types of allocation on a memory object.
 enum class AllocationType
 {
 	none = 0,
-	linear,
-	optimal
+	linear = 1,
+	optimal = 2,
+	sparse = 4,
+	sparseAlias = 8
 };
 
 ///DeviceMemory class that keeps track of its allocated and freed areas.
@@ -119,7 +122,7 @@ enum class AllocationType
 ///Note that there are additional rules for allocating device memory on vulkan (like e.g. needed
 ///offsets between image and buffer allocations) which are not checked/stored by this class, this
 ///has to be done externally.
-class DeviceMemory : public Resource
+class DeviceMemory : public ResourceHandle<vk::DeviceMemory>
 {
 public:
 	struct AllocationEntry
@@ -135,8 +138,14 @@ public:
 	DeviceMemory(const Device& dev, std::uint32_t size, vk::MemoryPropertyFlags flgs);
 	~DeviceMemory();
 
+	///DeviceMemory is NonMovable since all memory resources will keep references to
+	///their memory objects. Therfore its location has not to change.
+	DeviceMemory(DeviceMemory&& other) noexcept = delete;
+	DeviceMemory& operator=(DeviceMemory&& other) noexcept = delete;
+
 	///Tries to allocate a memory part that matches the given size and aligment requirements.
 	///If there is not enough free space left, a std::runtime_error will be thrown.
+	///The size parameter has to be not null, otherwise a std::logic_error will be thrown.
 	///One can test if there is enough space for the needed allocation with the
 	///allocatable() member function.
 	Allocation alloc(std::size_t size, std::size_t aligment, AllocationType type);
@@ -159,7 +168,8 @@ public:
 
 	///Frees the given allocation. Will throw a std::logic_error if the given allocation is not
 	///part of this Memory object.
-	void free(const Allocation& alloc);
+	///\return false if the allocation could not be found, true otherwise.
+	bool free(const Allocation& alloc);
 
 	///Returns the the biggest (continuously) allocatable block.
 	///This does not mean that an allocation of this size can be made, since there are also
@@ -182,16 +192,17 @@ public:
 	///Will throw a std::logic_error if this memory is not mappeble.
 	MemoryMapView map(const Allocation& allocation);
 
-	const vk::DeviceMemory& vkDeviceMemory() const { return memory_; }
-	vk::MemoryPropertyFlags propertyFlags() const { return flags_; }
+	vk::MemoryPropertyFlags properties() const;
+	bool mappable() const;
+
+	unsigned int type() const { return type_; }
+	const std::vector<AllocationEntry> allocations() const { return allocations_; }
 
 protected:
 	std::vector<AllocationEntry> allocations_ {}; //use sorted container?
-	vk::DeviceMemory memory_ {};
 	std::size_t size_ {};
 
-	std::size_t typeIndex_ {};
-	vk::MemoryPropertyFlags flags_ {};
+	unsigned int type_ {};
 	MemoryMap memoryMap_ {}; //the current memory map, or invalid object
 };
 

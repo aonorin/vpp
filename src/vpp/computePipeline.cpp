@@ -1,36 +1,65 @@
 #include <vpp/computePipeline.hpp>
+#include <vpp/vk.hpp>
+
+#include <utility>
 
 namespace vpp
 {
 
-ComputePipeline::ComputePipeline(const Device& dev, const CreateInfo& createInfo)
+ComputePipelineBuilder::ComputePipelineBuilder(const ComputePipelineBuilder& other)
+	: shaderStage(copy(other.shaderStage)), layout(other.layout), flags(other.flags)
 {
-	init(dev, createInfo);
 }
 
-void ComputePipeline::init(const Device& dev, const CreateInfo& createInfo)
+ComputePipelineBuilder& ComputePipelineBuilder::operator=(const ComputePipelineBuilder& other)
 {
-	Resource::init(dev);
+	shaderStage = copy(other.shaderStage);
+	layout = other.layout;
+	flags = other.flags;
+	return *this;
+}
 
-	//pipeline layout
-	std::vector<vk::DescriptorSetLayout> descriptorSetLayouts;
-	descriptorSetLayouts.reserve(createInfo.descriptorSetLayouts.size());
+Pipeline ComputePipelineBuilder::build(vk::PipelineCache cache)
+{
+	vk::Pipeline pipeline;
+	vk::ComputePipelineCreateInfo ret;
+	ret.flags = flags;
+	ret.stage = shaderStage.vkStageInfo();
+	ret.layout = layout;
+	vk::createComputePipelines(shaderStage.device(), cache, 1, ret, nullptr, pipeline);
+	return {shaderStage.device(), pipeline};
+}
 
-	for(auto& layout : createInfo.descriptorSetLayouts)
-		descriptorSetLayouts.push_back(layout->vkDescriptorSetLayout());
+vk::ComputePipelineCreateInfo ComputePipelineBuilder::parse()
+{
+	vk::ComputePipelineCreateInfo ret;
+	ret.flags = flags;
+	ret.stage = shaderStage.vkStageInfo();
+	ret.layout = layout;
+	return ret;
+}
 
-	vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
-	pipelineLayoutInfo.setLayoutCount(descriptorSetLayouts.size());
-	pipelineLayoutInfo.pSetLayouts(descriptorSetLayouts.data());
+std::vector<Pipeline> createComputePipelines(const Device& dev,
+	const Range<vk::ComputePipelineCreateInfo>& infos, vk::PipelineCache cache)
+{
+	auto pipelines = vk::createComputePipelines(dev, cache, infos);
+	std::vector<Pipeline> ret;
+	ret.reserve(pipelines.size());
+	for(auto& p : pipelines) ret.emplace_back(dev, p);
+	return ret;
+}
 
-	vk::createPipelineLayout(vkDevice(), &pipelineLayoutInfo, nullptr, &pipelineLayout_);
+std::vector<Pipeline> createComputePipelines(
+	const Range<std::reference_wrapper<ComputePipelineBuilder>>& builder,
+	vk::PipelineCache cache)
+{
+	if(builder.empty()) return {};
 
-	//pipeline
-	vk::ComputePipelineCreateInfo info;
-	info.stage(createInfo.shader.vkStageInfo());
-	info.layout(pipelineLayout_);
+	std::vector<vk::ComputePipelineCreateInfo> infos;
+	infos.reserve(builder.size());
+	for(auto& b : builder) infos.push_back(b.get().parse());
 
-	vk::createComputePipelines(vkDevice(), 0, 1, &info, nullptr, &pipeline_);
+	return createComputePipelines(builder.front().get().shaderStage.device(), infos, cache);
 }
 
 }

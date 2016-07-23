@@ -11,35 +11,37 @@
 namespace vpp
 {
 
-///A submission for executing work on the device.
-///If the submission was not yet submitted the fence member is 0.
-///Internally used by CommandExecutionState and SubmitManager.
-class CommandSubmission : public Resource
+class Fence : public Resource
 {
 public:
-	vk::Queue queue;
-	vk::SubmitInfo info;
-	vk::Fence fence {};
-	bool completed {}; //fence status cache
+	Fence() = default;
+	Fence(const Device& dev);
+	Fence(const Device& dev, const vk::FenceCreateInfo& info);
+	~Fence();
 
-public:
-	using Resource::Resource;
-	~CommandSubmission();
+	Fence(Fence&& other) noexcept { swap(*this, other); }
+	Fence& operator=(Fence other) noexcept { swap(*this, other); return *this; }
+
+	operator vk::Fence() const { return fence_; }
+	friend void swap(Fence& a, Fence& b) noexcept;
+
+protected:
+	vk::Fence fence_ {};
 };
 
-///Typedef for a shared Submission ptr, since this class is ususally used as shared ptr.
-using CommandSubmissionPtr = std::shared_ptr<CommandSubmission>;
-
 ///Can be used to track the state of a queued command buffer or to submit it to the device.
-class CommandExecutionState : public ResourceReference<CommandExecutionState>
+class CommandExecutionState : public Resource
 {
 public:
-	CommandExecutionState() = default;
-	CommandExecutionState(CommandSubmissionPtr subm) : submission_(std::move(subm)) {}
-	~CommandExecutionState() = default;
+	using FencePtr = std::shared_ptr<Fence>;
 
-	CommandExecutionState(CommandExecutionState&& other) noexcept = default;
-	CommandExecutionState& operator=(CommandExecutionState&& other) noexcept = default;
+public:
+	CommandExecutionState() = default;
+	CommandExecutionState(const Device& dev, CommandExecutionState** ptr);
+	~CommandExecutionState();
+
+	CommandExecutionState(CommandExecutionState&& other) noexcept;
+	CommandExecutionState& operator=(CommandExecutionState&& other) noexcept;
 
 	///Makes sure the commands associated with this control are submitted to the gpu.
 	void submit();
@@ -54,11 +56,16 @@ public:
 	///Returns whether execution of the associated commands have been finished.
 	bool completed() const;
 
-	const Resource& resourceRef() const { return *submission_; }
+	bool valid() const { return self_; }
 
 protected:
-	CommandSubmissionPtr submission_;
+	friend class SubmitManager;
+	FencePtr fence_;
+	CommandExecutionState** self_ {}; //pointer to the a unique_ptr in SubmitManager (Submission)
 };
+
+//TODO: split off class QueueManager. SubmitManager will only use QueueManager for locking.
+//This way there can be multiple classes like SubmitManager (e.g. SparseBinder in future).
 
 ///Class that manages all commands submitted to the gpu.
 ///In vulkan, submitting work to the device is a pretty heavy operation and must be synchronized
@@ -71,30 +78,49 @@ protected:
 class SubmitManager : public Resource
 {
 public:
+	struct Lock : public NonMovable, public Resource
+	{
+		Lock(const Device& dev);
+		~Lock();
+	};
+
+public:
 	///Submits all CommandBuffers in the submission queue.
-	///To wait for their completion, one can simply wait for the device to become idle.
+	///There is no way directly check for completion, but in a single-threaded application,
+	///one could simply wait for the device to become idle.
 	void submit();
 
 	///Submits all command buffers waiting for submission for the given queue.
-	///Returns the associated vulkan fence.
-	vk::Fence submit(vk::Queue queue);
+	void submit(vk::Queue queue);
 
 	///Adds a given vulkan submit info for exection of a commandBuffer on the given queue.
 	///Note that this function does NOT directly submits the given info. It will wait until there
 	///are many submissions batched together or a submit member function is called.
-	CommandExecutionState add(vk::Queue, const vk::SubmitInfo& info);
+	///Note that all pointers in the vk::SubmitInfo must remain valid until the submission
+	///submitted to the gpu.
+	void add(vk::Queue, const vk::SubmitInfo& info, CommandExecutionState* state = nullptr);
+	void add(vk::Queue, const std::vector<vk::CommandBuffer>& bufs, CommandExecutionState* = nullptr);
+	void add(vk::Queue, vk::CommandBuffer buffer, CommandExecutionState* state = nullptr);
 
 	///Function for ExecutionState
-	void submit(const CommandSubmissionPtr& ptr);
+	bool submit(const CommandExecutionState& state);
+
+	///This function must be called before submitting command buffers to the device.
+	///All queues will be acquired as long as the return Lock object is alive.
+	Lock acquire() const;
 
 protected:
+	struct Submission;
 	friend class Device;
-	SubmitManager(const Device& dev) : Resource(dev) {}
+	friend class Lock;
+
+protected:
+	SubmitManager(const Device& dev);
+	~SubmitManager();
 
 protected:
 	std::mutex mutex_;
-	std::size_t autoSubmitThreshold_; //XXX: needed?
-	std::unordered_map<vk::Queue, std::vector<CommandSubmissionPtr>> submissions_;
+	std::unordered_map<vk::Queue, std::vector<Submission>> submissions_;
 };
 
 }

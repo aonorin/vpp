@@ -1,10 +1,20 @@
-#include "codegen.hpp"
+#include "registry.hpp"
+#include "output.hpp"
 
-int main()
+#include <iostream>
+#include <locale>
+
+int main(int argc, const char** argv)
 {
-	RegistryLoader loader("vk.xml");
-	auto registry = loader.parse();
+	if(argc < 2) return EXIT_FAILURE;
+	RegistryLoader loader(argv[1]);
 
-	CCOutputGenerator generator(registry, "vulkan.hpp", "fwd.hpp");
+	std::cout << "loaded ... \n";
+	auto& registry = loader.parse();
+
+	std::cout << "parsed ... \n";
+	CCOutputGenerator generator(registry);
 	generator.generate();
+
+	std::cout << "generated ... \n";
 }

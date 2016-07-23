@@ -1,9 +1,8 @@
 #pragma once
 
-//experimental feature, may not be fully working
-
 #include <vpp/fwd.hpp>
 #include <vpp/resource.hpp>
+#include <vpp/vulkan/enums.hpp>
 
 #include <memory>
 #include <map>
@@ -17,62 +16,45 @@ namespace vpp
 
 class CommandPool;
 
-///XXX: this class really needed?
-//CommandBuffer
-class CommandBuffer : public ResourceReference<CommandBuffer>
+//RAII vulkan CommandBuffer wrapper.
+class CommandBuffer : public ResourceHandleReference<vk::CommandBuffer, CommandBuffer>
 {
 public:
 	CommandBuffer() = default;
 	CommandBuffer(vk::CommandBuffer buffer, const CommandPool& pool);
 	~CommandBuffer();
 
-	CommandBuffer(CommandBuffer&& other) noexcept;
-	CommandBuffer& operator=(CommandBuffer&& other) noexcept;
-
-	void swap(CommandBuffer& other) noexcept;
-
-	const CommandPool& resourceRef() const { return *commandPool_; }
+	CommandBuffer(CommandBuffer&& other) noexcept = default;
+	CommandBuffer& operator=(CommandBuffer&& other) noexcept = default;
 
 	const CommandPool& commandPool() const { return *commandPool_; }
-	const vk::CommandBuffer& vkCommandBuffer() const { return commandBuffer_; }
+	const CommandPool& resourceRef() const { return *commandPool_; }
 
 protected:
-	void destroy();
-
-protected:
-	vk::CommandBuffer commandBuffer_ {};
 	const CommandPool* commandPool_ {};
 };
 
-//CommandPool
-//XXX: needed?
-class CommandPool : public Resource
+//RAII vulkan CommandPool wrapper.
+class CommandPool : public ResourceHandle<vk::CommandPool>
 {
 public:
 	CommandPool() = default;
 	CommandPool(const Device& dev, std::uint32_t qfam, vk::CommandPoolCreateFlags flags = {});
 	~CommandPool();
 
-	CommandPool(CommandPool&& other) noexcept;
-	CommandPool& operator=(CommandPool&& other) noexcept;
+	CommandPool(CommandPool&& other) noexcept = default;
+	CommandPool& operator=(CommandPool&& other) noexcept = default;
 
-	void swap(CommandPool& other) noexcept;
-
+	CommandBuffer allocate(vk::CommandBufferLevel lvl = vk::CommandBufferLevel::primary);
 	std::vector<CommandBuffer> allocate(std::size_t count,
-		vk::CommandBufferLevel lvl = vk::CommandBufferLevel::Primary);
-	CommandBuffer allocate(vk::CommandBufferLevel lvl = vk::CommandBufferLevel::Primary);
+		vk::CommandBufferLevel lvl = vk::CommandBufferLevel::primary);
 
 	void reset(vk::CommandPoolResetFlags flags) const;
 
 	const std::uint32_t& queueFamily() const { return qFamily_; }
 	const vk::CommandPoolCreateFlags& flags() const { return flags_; }
-	const vk::CommandPool& vkCommandPool() const { return commandPool_; }
 
 protected:
-	void destroy();
-
-protected:
-	vk::CommandPool commandPool_ {};
 	vk::CommandPoolCreateFlags flags_ {};
 	std::uint32_t qFamily_ {};
 };

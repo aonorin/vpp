@@ -1,141 +1,141 @@
 #include <vpp/shader.hpp>
+#include <vpp/vk.hpp>
+#include <vpp/utility/file.hpp>
 
 #include <string>
 #include <fstream>
-#include <vector>
+#include <cmath>
+#include <cstring>
+#include <iostream>
 
 namespace vpp
 {
 
-//utility
-namespace
+vk::ShaderModule loadShaderModule(vk::Device dev, const char* filename)
 {
-
-std::vector<char> readFile(const std::string& filename, bool binary)
-{
-	 auto openmode = std::ios::ate;
-	 if(binary) openmode |= std::ios::binary;
-
-	std::ifstream ifs(filename, openmode);
-	if(!ifs.is_open())
-	{
-		std::cerr << "vpp::readFile: failed to open " << filename << ", " << strerror(errno) << "\n";
-		return {};
-	}
-
-	auto size = ifs.tellg();
-	ifs.seekg(0, std::ios::beg);
-
-	std::vector<char> buffer(size);
-	if(!ifs.read(buffer.data(), size))
-	{
-		std::cerr << "vpp::readFile: failed to read " << filename << ", " << strerror(errno) << "\n";
-		return {};
-	}
-
-	return buffer;
+	auto code = readFile(filename, true);
+	return loadShaderModule(dev, code);
 }
 
+vk::ShaderModule loadShaderModule(vk::Device dev, const std::vector<std::uint8_t>& code)
+{
+	if(code.size() % 4) throw std::runtime_error("vpp::loadShaderModule: invalid code size");
+
+	vk::ShaderModuleCreateInfo info;
+	info.codeSize = code.size();
+	info.pCode = reinterpret_cast<const std::uint32_t*>(code.data());
+
+	return vk::createShaderModule(dev, info);
 }
 
-//loadShader
-vk::ShaderModule ShaderStage::loadModule(vk::Device device, const std::string& filename)
+//ShaderModule
+ShaderModule::ShaderModule(const Device& dev, const char* filename) : ResourceHandle(dev)
 {
-	vk::ShaderModule module {};
+	const static std::string errorMsg = "vpp::ShaderMoudle: failed to create from ";
 
-	auto code = readFile(filename, 1);
-	if(code.empty())
-	{
-		std::cerr << "vpp::ShaderStage::loadModule: failed to load code from " << filename << "\n";
-		return module;
-	}
-
-	vk::ShaderModuleCreateInfo moduleCreateInfo;
-	moduleCreateInfo.codeSize(code.size());
-	moduleCreateInfo.pCode(reinterpret_cast<std::uint32_t*>(code.data()));
-
-	vk::createShaderModule(device, &moduleCreateInfo, nullptr, &module);
-	return module;
+	vkHandle() = loadShaderModule(dev, filename);
+	if(!vkHandle()) throw std::runtime_error(errorMsg + filename);
 }
 
-//stage
-ShaderStage::ShaderStage(const Device& device, const CreateInfo& info)
+ShaderModule::ShaderModule(const Device& dev, const std::vector<std::uint8_t>& code)
+	: ResourceHandle(dev)
 {
-	init(device, info);
+	vkHandle() = loadShaderModule(dev, code);
+	if(!vkHandle()) throw std::runtime_error("vpp::ShaderModule: failed to create from given code");
+}
+
+ShaderModule::~ShaderModule()
+{
+	if(vkHandle()) vk::destroyShaderModule(device(), vkHandle());
+}
+
+//ShaderStage
+ShaderStage::ShaderStage(const Device& dev, const char* filename, const CreateInfo& info)
+	: Resource(dev), owned_(true), info_(info)
+{
+	const static std::string errorMsg = "vpp::ShaderMoudle: failed to create from ";
+
+	module_ = loadShaderModule(dev, filename);
+	if(!module_) throw std::runtime_error(errorMsg + filename);
+}
+
+ShaderStage::ShaderStage(const Device& dev, const std::vector<std::uint8_t>& code,
+	const CreateInfo& info) : Resource(dev), owned_(true), info_(info)
+{
+	module_ = loadShaderModule(dev, code);
+	if(!module_) throw std::runtime_error("vpp::ShaderModule: failed to create from given code");
+}
+
+ShaderStage::ShaderStage(const Device& dev, vk::ShaderModule module, const CreateInfo& info)
+	: Resource(dev), owned_(false), module_(module), info_(info)
+{
 }
 
 ShaderStage::~ShaderStage()
 {
-	destroy();
+	if(owned_ && module_) vk::destroyShaderModule(vkDevice(), module_, nullptr);
 }
 
 ShaderStage::ShaderStage(ShaderStage&& other) noexcept
 {
-	using std::swap;
-
-	swap(device_, other.device_);
-	swap(stageInfo_, other.stageInfo_);
+	swap(*this, other);
 }
 
-ShaderStage& ShaderStage::operator=(ShaderStage&& other) noexcept
+ShaderStage& ShaderStage::operator=(ShaderStage other) noexcept
 {
-	destroy();
-
-	using std::swap;
-
-	swap(device_, other.device_);
-	swap(stageInfo_, other.stageInfo_);
-
+	swap(*this, other);
 	return *this;
 }
 
-void ShaderStage::init(const Device& device, const CreateInfo& info)
+void swap(ShaderStage& a, ShaderStage& b) noexcept
 {
-	destroy();
-	Resource::init(device);
-
-	stageInfo_.stage(info.stage);
-	stageInfo_.pSpecializationInfo(info.specializationInfo);
-	stageInfo_.pName(info.entry.c_str());
-	stageInfo_.module(loadModule(vkDevice(), info.filename));
+	using std::swap;
+	swap(a.resourceBase(), b.resourceBase());
+	swap(a.info_, b.info_);
+	swap(a.owned_, b.owned_);
+	swap(a.module_, b.module_);
 }
 
-void ShaderStage::destroy()
+vk::PipelineShaderStageCreateInfo ShaderStage::vkStageInfo() const
 {
-	if(stageInfo_.module())
-	{
-		vk::destroyShaderModule(vkDevice(), stageInfo_.module(), nullptr);
-	}
+	vk::PipelineShaderStageCreateInfo ret;
+	ret.stage = info_.stage;
+	ret.pSpecializationInfo = info_.specialization;
+	ret.pName = info_.entry;
+	ret.module = module_;
 
-	stageInfo_ = vk::PipelineShaderStageCreateInfo {};
+	return ret;
 }
 
 //shader class
-ShaderProgram::ShaderProgram(const Device& device, const std::vector<ShaderStage::CreateInfo>& infos)
-	: Resource(device)
+ShaderProgram::ShaderProgram(const Device& device) : Resource(device)
 {
-	addStages(infos);
 }
 
-void ShaderProgram::init(const Device& device, const std::vector<ShaderStage::CreateInfo>& infos)
+void ShaderProgram::stage(const char* filename, const ShaderStage::CreateInfo& createInfo)
 {
-	Resource::init(device);
-	addStages(infos);
+	auto s = stage(createInfo.stage);
+	if(s) *s = {device(), filename, createInfo};
+	else stages_.emplace_back(device(), filename, createInfo);
 }
 
-void ShaderProgram::destroy()
+void ShaderProgram::stage(vk::ShaderModule module, const ShaderStage::CreateInfo& createInfo)
 {
-	stages_.clear();
+	auto s = stage(createInfo.stage);
+	if(s) *s = {device(), module, createInfo};
+	else stages_.emplace_back(device(), module, createInfo);
 }
 
-void ShaderProgram::addStage(const ShaderStage::CreateInfo& createInfo)
+ShaderStage* ShaderProgram::stage(vk::ShaderStageBits stage)
 {
-	stages_.emplace_back(device(), createInfo);
+	for(auto& s : stages_) if(s.info().stage == stage) return &s;
+	return nullptr;
 }
 
-void ShaderProgram::addStages(const std::vector<ShaderStage::CreateInfo>& createInfo)
+const ShaderStage* ShaderProgram::stage(vk::ShaderStageBits stage) const
 {
-	for(auto& s : createInfo) addStage(s);
+	for(auto& s : stages_) if(s.info().stage == stage) return &s;
+	return nullptr;
 }
 
 std::vector<vk::PipelineShaderStageCreateInfo> ShaderProgram::vkStageInfos() const
@@ -147,6 +147,19 @@ std::vector<vk::PipelineShaderStageCreateInfo> ShaderProgram::vkStageInfos() con
 		ret.push_back(stage.vkStageInfo());
 
 	return ret;
+}
+
+//copy
+ShaderProgram copy(const ShaderProgram& other)
+{
+	ShaderProgram ret(other.device());
+	for(auto& stage : other.stages()) ret.stage(stage.vkShaderModule(), stage.info());
+	return ret;
+}
+
+ShaderStage copy(const ShaderStage& other)
+{
+	return {other.device(), other.vkShaderModule(), other.info()};
 }
 
 }

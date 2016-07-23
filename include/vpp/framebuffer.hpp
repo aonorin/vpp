@@ -1,6 +1,5 @@
 #pragma once
 
-#include <vpp/vk.hpp>
 #include <vpp/fwd.hpp>
 #include <vpp/device.hpp>
 #include <vpp/resource.hpp>
@@ -8,44 +7,50 @@
 
 namespace vpp
 {
-	
-///Vulkan Framebuffer.
-class Framebuffer : public Resource
+
+//NOTE: must be resource since it might be created without internal manages attachments
+
+///Vulkan Framebuffer consisting of multiple image attachments.
+///Can be initialized with two step initialization.
+///Stores its own size and is able to create and manage its own attachments but does
+///not store any further information such as render pass compatibilty.
+class Framebuffer : public ResourceHandle<vk::Framebuffer>
 {
 public:
-	struct CreateInfo
-	{
-		vk::RenderPass renderPass {};
-		vk::Extent2D size {};
-		std::vector<ViewableImage::CreateInfo> attachments;
-	};
+	using ExtAttachments = std::unordered_map<unsigned int, vk::ImageView>;
+	using AttachmentsInfo = std::vector<ViewableImage::CreateInfo>; //pair<imgCreate, viewCreate>
 
 public:
-	static std::vector<ViewableImage::CreateInfo> parseRenderPass(const RenderPass& renderPass);
+	///Can be used to create required framebuffer attachments for a render pass.
+	///The returned vecotr can be passed as the attachments vector of the CreateInfo
+	///object that is given as create paramater.
+	///\param size The size stored in the image create infos.
+	static AttachmentsInfo parseRenderPass(const RenderPass& rp, const vk::Extent2D& size);
 
 public:
 	Framebuffer() = default;
-	Framebuffer(const Device& dev, const CreateInfo& info);
+	Framebuffer(const Device& dev, vk::RenderPass rp, const vk::Extent2D& size,
+		const AttachmentsInfo& attachments, const ExtAttachments& ext = {});
 	~Framebuffer();
 
-	Framebuffer(Framebuffer&& other) noexcept;
-	Framebuffer& operator=(Framebuffer&& other) noexcept;
+	Framebuffer(Framebuffer&& other) noexcept = default;
+	Framebuffer& operator=(Framebuffer&& other) noexcept = default;
 
-	void initMemoryLess(const Device& dev, const CreateInfo& info);
-	void initMemoryResources(const std::map<unsigned int, vk::ImageView>& extAttachments = {});
+	void create(const Device& dev, const vk::Extent2D& size, const std::vector<vk::ImageCreateInfo>&);
+	void create(const Device& dev, const vk::Extent2D& size, const AttachmentsInfo& info);
 
-	vk::Framebuffer vkFramebuffer() const { return framebuffer_; }
-	const vk::Extent2D& size() const { return info_.size; }
+	///\exception std::logic_error if there are less view infos than image infos passed to create.
+	void init(vk::RenderPass rp, const AttachmentsInfo& info, const ExtAttachments& ext = {});
+	void init(vk::RenderPass rp, const std::vector<vk::ImageViewCreateInfo>& info,
+		const ExtAttachments& extAttachments = {});
+
 	const std::vector<ViewableImage>& attachments() const { return attachments_; }
-	const CreateInfo& info() const { return info_; }
-
-	void destroy();
-	friend void swap(Framebuffer& a, Framebuffer& b) noexcept;
+	vk::Extent2D size() const;
 
 protected:
-	vk::Framebuffer framebuffer_ {};
 	std::vector<ViewableImage> attachments_;
-	CreateInfo info_ {};
+	unsigned int width_ = 0;
+	unsigned int height_ = 0;
 };
 
 }

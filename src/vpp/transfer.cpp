@@ -1,4 +1,5 @@
 #include <vpp/transfer.hpp>
+#include <vpp/vk.hpp>
 #include <algorithm>
 
 namespace vpp
@@ -9,16 +10,19 @@ TransferManager::TransferBuffer::TransferBuffer(const Device& dev, std::size_t s
 	: mutex_(mtx)
 {
 	vk::BufferCreateInfo info;
-	info.size(size);
-	info.usage(vk::BufferUsageFlagBits::TransferDst | vk::BufferUsageFlagBits::TransferSrc);
+	info.size = size;
+	info.usage = vk::BufferUsageBits::transferDst | vk::BufferUsageBits::transferSrc;
 
-	buffer_ = Buffer(dev, info, vk::MemoryPropertyFlagBits::HostVisible);
+	buffer_ = Buffer(dev, info, vk::MemoryPropertyBits::hostVisible);
+	buffer_.assureMemory();
 }
 
 TransferManager::TransferBuffer::~TransferBuffer()
 {
 	auto rc = ranges_.size();
+#ifndef NDEBUG
 	if(rc > 0) std::cerr << "vpp::TransferManager::~TransferBuffer: " << rc << " allocations left\n";
+#endif
 }
 
 Allocation TransferManager::TransferBuffer::use(std::size_t size)
@@ -26,17 +30,18 @@ Allocation TransferManager::TransferBuffer::use(std::size_t size)
 	static const Allocation start = {0, 0};
 	auto old = start;
 
-	for(auto& alloc : ranges_)
+	for(auto it = ranges_.begin(); it != ranges_.end(); ++it)
 	{
-		if(alloc.offset - old.end() > size)
+		if(it->offset - old.end() > size)
 		{
-			Allocation allocation = {old.end(), size};
-			auto it = std::lower_bound(ranges_.begin(), ranges_.end(), allocation,
-				[](auto& a, auto& b){ return a.offset < b.offset; });
-			return allocation;
+			Allocation range = {old.end(), size};
+
+			//inserts the tested range before the higher range, if there is any
+			ranges_.insert(it, range);
+			return range;
 		}
 
-		old = alloc;
+		old = *it;
 	}
 
 	return {};
@@ -68,13 +73,9 @@ TransferManager::BufferRange::BufferRange(BufferRange&& other) noexcept
 	swap(*this, other);
 }
 
-TransferRange& TransferManager::BufferRange::operator=(BufferRange&& other) noexcept
+TransferRange& TransferManager::BufferRange::operator=(BufferRange other) noexcept
 {
-	if(buffer_) buffer_->release(allocation());
-	buffer_ = {};
-	allocation_ = {};
 	swap(*this, other);
-
 	return *this;
 }
 
@@ -155,6 +156,20 @@ void TransferManager::optimize()
 	}
 
 	reserve(size);
+}
+
+//utility
+int transferQueueFamily(const Device& dev, const Queue** queue)
+{
+	//we do not only query a valid queue family but a valid queue and then chose its queue
+	//family to assure that the device has a queue for the queried queue family
+	auto* q = dev.queue(vk::QueueBits::transfer);
+	if(!q) q = dev.queue(vk::QueueBits::graphics);
+	if(!q) q = dev.queue(vk::QueueBits::compute);
+	if(!q) return -1;
+
+	if(queue) *queue = q;
+	return q->family();
 }
 
 }

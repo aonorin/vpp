@@ -1,30 +1,50 @@
-add_executable(VkCppGenerator
-	VkCppGenerator.cpp
-	tinyxml2/tinyxml2.cpp
-)
+#codegen executable
+add_executable(vkGenerator
+	output.cpp
+	registry.cpp
+	main.cpp
+	pugixml/pugixml.cpp)
 
-add_custom_command(
-	OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/vulkan/vulkan.hpp"
-  	COMMAND VkCppGenerator
-    DEPENDS VkCppGenerator
-	WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-    COMMENT "Generating vkcpp headers in ${CMAKE_CURRENT_SOURCE_DIR}")
+#target_include_directories(vkGenerator PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+set(output-dir "${CMAKE_SOURCE_DIR}/include/vpp/vulkan")
 
 set(outputs
-	"${CMAKE_SOURCE_DIR}/include/vpp/vulkan/vulkan.hpp"
-	"${CMAKE_SOURCE_DIR}/include/vpp/vulkan/call.hpp"
-	"${CMAKE_SOURCE_DIR}/include/vpp/vulkan/enums.hpp"
-	"${CMAKE_SOURCE_DIR}/include/vpp/vulkan/functions.hpp"
-	"${CMAKE_SOURCE_DIR}/include/vpp/vulkan/structs.hpp"
-	"${CMAKE_SOURCE_DIR}/include/vpp/vulkan/strings.hpp")
+	"${output-dir}/vulkan.hpp"
+	"${output-dir}/enums.hpp"
+	"${output-dir}/fwd.hpp"
+	"${output-dir}/functions.hpp"
+	"${output-dir}/structs.hpp")
+
+set(pres
+	"${output-dir}/flags.hpp"
+	"${output-dir}/range.hpp"
+	"${output-dir}/handle.hpp"
+	"${output-dir}/call.hpp")
+
+#command to copy the pre files to the vulkan codegen dir
+add_custom_command(
+	OUTPUT ${pres}
+	COMMAND
+		${CMAKE_COMMAND} -E copy_directory
+		"${CMAKE_CURRENT_SOURCE_DIR}/pre"
+		"${output-dir}"
+	DEPENDS
+		"${CMAKE_CURRENT_SOURCE_DIR}/pre/flags.hpp"
+		"${CMAKE_CURRENT_SOURCE_DIR}/pre/call.hpp"
+		"${CMAKE_CURRENT_SOURCE_DIR}/pre/handle.hpp"
+		"${CMAKE_CURRENT_SOURCE_DIR}/pre/range.hpp"
+	WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+	COMMENT "Copying vulkan headers dependency files")
+
+#message(STATUS "${output-dir}/functions.hpp")
 
 add_custom_command(
 	OUTPUT ${outputs}
-	COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/vulkan" "${CMAKE_SOURCE_DIR}/include/vpp/vulkan"
-	DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/vulkan/vulkan.hpp" "${CMAKE_CURRENT_SOURCE_DIR}/vulkan/call.hpp"
-	WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-	COMMENT "copying vkcpp headers")
+	COMMAND vkGenerator "${CMAKE_CURRENT_SOURCE_DIR}/vk.xml"
+    DEPENDS vkGenerator
+	WORKING_DIRECTORY "${output-dir}"
+	COMMENT "Generating vulkan hpp headers")
 
-add_custom_target(VkHeader ALL
-	#COMMAND  ${CMAKE_COMMAND} -E echo yoyoyo
-	DEPENDS "${CMAKE_SOURCE_DIR}/include/vpp/vulkan/vulkan.hpp")
+add_custom_target(vkHeaders ALL
+	COMMENT "Generating vulkan headers"
+	DEPENDS ${outputs} ${pres})

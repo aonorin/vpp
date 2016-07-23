@@ -1,33 +1,35 @@
 #include <vpp/allocator.hpp>
+#include <vpp/vk.hpp>
+#include <vpp/utility/debug.hpp>
+#include <algorithm>
 
 namespace vpp
 {
 
 //Entry
-DeviceMemoryAllocator::Entry::Entry(DeviceMemory* memory, const Allocation& alloc)
-	: memory_(memory), allocation_(alloc)
+MemoryEntry::MemoryEntry(DeviceMemory& memory, const Allocation& alloc)
+	: memory_(&memory), allocation_(alloc)
 {
 }
 
-DeviceMemoryAllocator::Entry::Entry(Entry&& other) noexcept
+MemoryEntry::MemoryEntry(MemoryEntry&& other) noexcept
 {
 	swap(*this, other);
 }
 
-DeviceMemoryAllocator::Entry& DeviceMemoryAllocator::Entry::operator=(Entry&& other) noexcept
+MemoryEntry& MemoryEntry::operator=(MemoryEntry other) noexcept
 {
-	this->free();
 	swap(*this, other);
 	return *this;
 }
 
-DeviceMemoryAllocator::Entry::~Entry()
+MemoryEntry::~MemoryEntry()
 {
-	if(allocator_) allocator_->removeRequest(*this);
-	free();
+	if(!allocated() && allocator_) allocator_->removeRequest(*this);
+	else if(allocated()) memory_->free(allocation_);
 }
 
-void swap(DeviceMemoryAllocator::Entry& a, DeviceMemoryAllocator::Entry& b) noexcept
+void swap(MemoryEntry& a, MemoryEntry& b) noexcept
 {
 	using std::swap;
 
@@ -54,16 +56,7 @@ void swap(DeviceMemoryAllocator::Entry& a, DeviceMemoryAllocator::Entry& b) noex
 	swap(a.allocation_, b.allocation_);
 }
 
-void DeviceMemoryAllocator::Entry::free()
-{
-	if(!allocated() && allocator_) allocator_->removeRequest(*this);
-	else if(allocated()) memory_->free(allocation_);
-
-	allocation_ = {};
-	allocator_ = nullptr;
-}
-
-MemoryMapView DeviceMemoryAllocator::Entry::map() const
+MemoryMapView MemoryEntry::map() const
 {
 	return memory()->map(allocation());
 }
@@ -75,16 +68,18 @@ DeviceMemoryAllocator::DeviceMemoryAllocator(const Device& dev) : Resource(dev)
 
 DeviceMemoryAllocator::~DeviceMemoryAllocator()
 {
-	if(device_) allocate();
+	VPP_DEBUG_CHECK(vpp::~DeviceMemoryAllocator,
+	{
+		if(!requirements_.empty()) VPP_DEBUG_OUTPUT("There are requirements left");
+	});
 }
 
 DeviceMemoryAllocator::DeviceMemoryAllocator(DeviceMemoryAllocator&& other) noexcept
 {
 	swap(*this, other);
 }
-DeviceMemoryAllocator& DeviceMemoryAllocator::operator=(DeviceMemoryAllocator&& other) noexcept
+DeviceMemoryAllocator& DeviceMemoryAllocator::operator=(DeviceMemoryAllocator other) noexcept
 {
-	if(device_) allocate();
 	swap(*this, other);
 	return *this;
 }
@@ -93,264 +88,368 @@ void swap(DeviceMemoryAllocator& a, DeviceMemoryAllocator& b) noexcept
 {
 	using std::swap;
 
-	swap(a.bufferRequirements_, b.bufferRequirements_);
-	swap(a.imageRequirements_, b.imageRequirements_);
-	swap(a.device_, b.device_);
+	swap(a.resourceBase(), b.resourceBase());
+	swap(a.requirements_, b.requirements_);
 	swap(a.memories_, b.memories_);
 }
 
 void DeviceMemoryAllocator::request(vk::Buffer requestor, const vk::MemoryRequirements& reqs,
-	Entry& entry)
+	vk::BufferUsageFlags usage, MemoryEntry& entry)
 {
-	if(reqs.size() == 0)
+	if(!reqs.size)
 		throw std::logic_error("vpp::DeviceMemAllocator::request: allocation size of 0 not allowed");
 
 	entry = {};
 	entry.allocator_ = this;
 
-	for(auto& type : bufferRequirements_)
-	{
-		if(reqs.memoryTypeBits() & (1 << type.first))
-		{
-			type.second.push_back({requestor, reqs, &entry});
-			return;
-		}
-	}
+	Requirement req;
+	req.type = RequirementType::buffer;
+	req.size = reqs.size;
+	req.alignment = reqs.alignment;
+	req.memoryTypes = reqs.memoryTypeBits;
+	req.buffer = requestor;
+	req.entry = &entry;
 
-	std::uint32_t typeIndex = 0;
-	while(((reqs.memoryTypeBits() >> typeIndex++) & 1) != 1);
-	bufferRequirements_[typeIndex].push_back({requestor, reqs, &entry});
+	//apply additional device limits alignments
+	auto align = device().properties().limits.minUniformBufferOffsetAlignment;
+	if(usage & vk::BufferUsageBits::uniformBuffer && align > 0)
+		req.alignment = vpp::align(req.alignment, align);
+
+	align = device().properties().limits.minTexelBufferOffsetAlignment;
+	if(usage & vk::BufferUsageBits::uniformTexelBuffer && align > 0)
+		req.alignment = vpp::align(req.alignment, align);
+
+	align = device().properties().limits.minStorageBufferOffsetAlignment;
+	if(usage & vk::BufferUsageBits::storageBuffer && align > 0)
+		req.alignment = vpp::align(req.alignment, align);
+
+	requirements_.push_back(req);
 }
 
 void DeviceMemoryAllocator::request(vk::Image requestor, const vk::MemoryRequirements& reqs,
-	vk::ImageTiling tiling, Entry& entry)
+	vk::ImageTiling tiling, MemoryEntry& entry)
 {
-	if(reqs.size() == 0)
+	if(reqs.size == 0)
 		throw std::logic_error("vpp::DeviceMemAllocator::request: allocation size of 0 not allowed");
 
 	entry = {};
 	entry.allocator_ = this;
-	auto typ = (tiling == vk::ImageTiling::Linear) ? AllocationType::linear : AllocationType::optimal;
 
-	for(auto& type : imageRequirements_)
+	using ReqType = RequirementType;
+
+	Requirement req;
+	req.type = (tiling == vk::ImageTiling::linear) ? ReqType::linearImage : ReqType::optimalImage;
+	req.size = reqs.size;
+	req.alignment = reqs.alignment;
+	req.memoryTypes = reqs.memoryTypeBits;
+	req.image = requestor;
+	req.entry = &entry;
+
+	requirements_.push_back(req);
+}
+
+bool DeviceMemoryAllocator::removeRequest(const MemoryEntry& entry)
+{
+	auto it = findReq(entry);
+	if(it == requirements_.end())
 	{
-		if(reqs.memoryTypeBits() & (1 << type.first))
-		{
-			type.second.push_back({requestor, reqs, typ, &entry});
-			return;
-		}
+#ifndef NDEBUG
+		std::cerr << "vpp::DevMemAllocator::removeRequest: could not find entry\n";
+#endif
+		return false;
 	}
 
-	unsigned int typeIndex = 0;
-	while(((reqs.memoryTypeBits() >> typeIndex++) & 1) != 1);
-	imageRequirements_[typeIndex].push_back({requestor, reqs, typ, &entry});
+	requirements_.erase(it);
+	return true;
 }
 
-bool DeviceMemoryAllocator::removeRequest(const Entry& entry)
+bool DeviceMemoryAllocator::moveEntry(const MemoryEntry& oldOne, MemoryEntry& newOne)
 {
-	//check buffer
-	for(auto& reqs : bufferRequirements_) {
-		for(auto it = reqs.second.begin(); it != reqs.second.end(); ++it) {
-			if(it->entry == &entry) {
-				reqs.second.erase(it);
-				return true;
-			}
-		}
+	auto req = findReq(oldOne);
+	if(req == requirements_.end())
+	{
+#ifndef NDEBUG
+		std::cerr << "vpp::DevMemAllocator::moveRequest: could not find entry\n";
+#endif
+		return false;
 	}
 
-	//check image
-	for(auto& reqs : imageRequirements_) {
-		for(auto it = reqs.second.begin(); it != reqs.second.end(); ++it) {
-			if(it->entry == &entry) {
-				reqs.second.erase(it);
-				return true;
-			}
-		}
+	req->entry = &newOne;
+	return true;
+}
+
+DeviceMemory* DeviceMemoryAllocator::findMem(Requirement& req)
+{
+	for(auto& mem : memories_)
+	{
+		if(!supportsType(req, mem->type())) continue;
+		auto allocation = mem->allocatable(req.size, req.alignment, toAllocType(req.type));
+		if(allocation.size == 0) continue;
+
+		mem->allocSpecified(allocation.offset, allocation.size, toAllocType(req.type));
+
+		//can be allocated on memory, allocate and bind it
+		if(req.type == RequirementType::buffer)
+			vk::bindBufferMemory(device(), req.buffer, *mem, allocation.offset);
+		else
+			vk::bindImageMemory(device(), req.image, *mem, allocation.offset);
+
+		req.entry->allocation_ = allocation;
+		req.entry->memory_ = mem.get();
+		return mem.get();
 	}
 
-	//not found
-	return false;
-}
-
-bool DeviceMemoryAllocator::moveEntry(Entry& oldOne, Entry& newOne)
-{
-	//check buffer
-	for(auto& reqs : bufferRequirements_) {
-		for(auto& req : reqs.second) {
-			if(req.entry == &oldOne) {
-				req.entry = &newOne;
-				return true;
-			}
-		}
-	}
-
-	//check image
-	for(auto& reqs : imageRequirements_) {
-		for(auto& req : reqs.second) {
-			if(req.entry == &oldOne) {
-				req.entry = &newOne;
-				return true;
-			}
-		}
-	}
-
-	//not found
-	return false;
-}
-
-DeviceMemoryAllocator::BufReqs::iterator DeviceMemoryAllocator::findBufReq(const Entry& entry,
-	unsigned int& type)
-{
-
-}
-
-DeviceMemoryAllocator::ImgReqs::iterator DeviceMemoryAllocator::findImgReq(const Entry& entry,
-	unsigned int& type)
-{
-
-}
-
-void DeviceMemoryAllocator::minimizeAllocations()
-{
-	//some code to allocate on already existent memories with free space
-}
-
-DeviceMemory* DeviceMemoryAllocator::findMem(const vk::MemoryRequirements& reqs, AllocationType type,
-	Allocation& allocation)
-{
-	//try to find free memory that is able to allocate for the given requirements
 	return nullptr;
 }
 
-std::map<unsigned int, std::size_t> DeviceMemoryAllocator::sizeMap()
+DeviceMemoryAllocator::Requirements::iterator DeviceMemoryAllocator::findReq(const MemoryEntry& entry)
 {
-	//holding the total size for each needed deivceMemory
-	std::map<unsigned int, std::size_t> sMap;
-
-	//physical device granularity (space between different allocation types)
-	auto gran = device().properties().limits().bufferImageGranularity();
-
-	//hold the (virtually registered) lat allocation on the given deviceMemory
-	std::map<unsigned int, AllocationType> lastAlloc;
-
-	//add bufferRequirements to sizeMap
-	for(auto i = 0u; i < 32; ++i) {
-		auto itbuf = bufferRequirements_.find(i);
-		if(itbuf != bufferRequirements_.cend()) {
-			for(auto& req : itbuf->second) {
-				auto align = req.requirements.alignment();
-				if(sMap[i] % align) sMap[i] = sMap[i] - (sMap[i] % align) + align;
-				req.offset = sMap[i];
-
-				sMap[i] += req.requirements.size();
-			}
-		}
-	}
-
-	//add ImageRequirements to sizeMap, care for granularity
-	for(auto i = 0u; i < 32; ++i) {
-		auto itimg = imageRequirements_.find(i);
-		if(itimg != imageRequirements_.cend()) {
-			for(auto& req : itimg->second) {
-				if(lastAlloc[i] != AllocationType::none && req.type != lastAlloc[i]) {
-					if(sMap[i] % gran) sMap[i] = sMap[i] - (sMap[i] % gran) + gran;
-					lastAlloc[i] = req.type;
-				}
-
-				auto align = req.requirements.alignment();
-				if(sMap[i] % align) sMap[i] = sMap[i] - (sMap[i] % align) + align;
-				req.offset = sMap[i];
-
-				sMap[i] += req.requirements.size();
-			}
-		}
-	}
-
-	return sMap;
+	return std::find_if(requirements_.begin(), requirements_.end(), [&](const auto& r)
+		{ return r.entry == &entry; });
 }
 
-//TODO: reimplement both allocate functions to be more effeicient (reuse old mem esp.)
+//TODO: all 4 allocate functions can be improved.
 void DeviceMemoryAllocator::allocate()
 {
-	minimizeAllocations();
-	auto sMap = sizeMap();
-
-	//allocate and bind DeviceMemory objects
-	for(auto& entry : sMap) {
-		auto memory = std::make_unique<DeviceMemory>(device(), entry.second, entry.first);
-
-		//buffers
-		for(auto& buf : bufferRequirements_[entry.first]) {
-			auto alloc = memory->allocSpecified(buf.offset, buf.requirements.size(),
-				AllocationType::linear);
-			buf.entry->memory_ = memory.get();
-			buf.entry->allocation_ = alloc;
-
-			vk::bindBufferMemory(vkDevice(), buf.requestor, memory->vkDeviceMemory(), buf.offset);
-		}
-
-		//images
-		for(auto& img : imageRequirements_[entry.first]) {
-			auto alloc = memory->allocSpecified(img.offset, img.requirements.size(), img.type);
-			img.entry->memory_ = memory.get();
-			img.entry->allocation_ = alloc;
-
-			vk::bindImageMemory(vkDevice(), img.requestor, memory->vkDeviceMemory(), img.offset);
-		}
-
-		memories_.push_back(std::move(memory));
+	//try to find space for them
+	for(auto it = requirements_.begin(); it != requirements_.end();)
+	{
+		if(findMem(*it)) it = requirements_.erase(it);
+		else ++it;
 	}
 
-	//clear
-	imageRequirements_.clear();
-	bufferRequirements_.clear();
+	if(requirements_.empty()) return;
+
+	//allocate remaining types
+	const auto& map = queryTypes(); //lifetime extension
+	for(auto& type : map) allocate(type.first, type.second);
+	requirements_.clear(); //all requirements can be removed
 }
 
-bool DeviceMemoryAllocator::allocate(const Entry& entry)
+bool DeviceMemoryAllocator::allocate(const MemoryEntry& entry)
 {
-	//TODO
-	allocate();
-	return true;
-
-	//try to find memory for the given entry
-	constexpr static unsigned int undef = -1;
-
-	unsigned int type = undef;
-	Allocation allocation;
-
-	auto buf = findBufReq(entry, type);
-	if(type != undef) {
-		auto mem = findMem(buf->requirements, AllocationType::linear, allocation);
-		if(mem) {
-			buf->entry->memory_ = mem;
-			buf->entry->allocation_ = allocation;
-
-			vk::bindBufferMemory(vkDevice(), buf->requestor, mem->vkDeviceMemory(), buf->offset);
-			return true;
-		}
-	} else {
-		auto img = findImgReq(entry, type);
-		if(type == undef) return false; //cannot be found as buffer nor as image
-
-		auto mem = findMem(img->requirements, AllocationType::linear, allocation);
-		if(mem) {
-			img->entry->memory_ = mem;
-			img->entry->allocation_ = allocation;
-
-			vk::bindImageMemory(vkDevice(), img->requestor, mem->vkDeviceMemory(), img->offset);
-			return true;
-		}
+	auto req = findReq(entry);
+	if(req == requirements_.end())
+	{
+#ifndef NDEBUG
+		std::cerr << "vpp::DevMemAllocator::allocate: could not find entry\n";
+#endif
+		return false;
 	}
 
-	//allocate a new memory for the needed type
-	//allocate(type);
-	allocate();
+	//this function makes sure the given entry is allocated
+	//first of all try to find a free spot in the already existent memories
+	if(findMem(*req))
+	{
+		requirements_.erase(req);
+		return true;
+	}
+
+	//finding free memory failed, so query the memory type with the most requests and on
+	//which the given entry can be allocated and then alloc and bind all reqs for this type
+	//XXX: rather use here also queryTypes? could be more efficient seen for the whole amount
+	//	allocations that have to be done. At the moment it will choose the type bit that has
+	//	the highest amount of stored requirements, but some other type may be better (?) to reduce
+	//	the amount of different allocations that have to be done.
+	auto type = findBestType(req->memoryTypes);
+	allocate(type);
+
 	return true;
 }
 
 void DeviceMemoryAllocator::allocate(unsigned int type)
 {
-	//find all requests that might be allocated on this type an allocate them
+	std::vector<Requirement*> reqs;
+
+	for(auto& req : requirements_)
+		if(supportsType(req, type)) reqs.push_back(&req);
+
+	allocate(type, reqs);
+
+	//remove allocated reqs
+	//TODO: use efficient std algorithm with less resize/moves
+	for(auto& req : reqs)
+	{
+		for(auto it = requirements_.begin(); it != requirements_.end();)
+		{
+			if(req == &(*it)) it = requirements_.erase(it);
+			else ++it;
+		}
+	}
+}
+
+void DeviceMemoryAllocator::allocate(unsigned int type, const Range<Requirement*>& requirements)
+{
+	auto gran = device().properties().limits.bufferImageGranularity;
+
+	vk::DeviceSize offset = 0;
+	bool applyGran = false;
+
+	std::vector<std::pair<Requirement*, unsigned int>> offsets;
+	offsets.reserve(requirements.size());
+
+	//iterate through all reqs and place the ones that may be allocated on the given type
+	//there. First all linear resources, then all optimal resources.
+	for(auto& req : requirements)
+	{
+		if(req->type == RequirementType::optimalImage)
+		{
+			applyGran = true;
+			continue;
+		}
+
+		if(req->alignment) offset = vpp::align(offset, req->alignment);
+		offsets.push_back({req, offset});
+		offset += req->size;
+	}
+
+	//apply granularity if there were already resources placed and there are ones to be placed
+	if(offset > 0 && applyGran && gran) offset = vpp::align(offset, gran);
+
+	//now all optimal resources
+	for(auto& req : requirements)
+	{
+		if(req->type != RequirementType::optimalImage) continue;
+
+		if(req->alignment) offset = vpp::align(offset, req->alignment);
+		offsets.push_back({req, offset});
+		offset += req->size;
+	}
+
+	//now the needed size is known and the requirements to be allocated have their offsets
+	//the last offset value now equals the needed size
+	auto mem = std::make_unique<DeviceMemory>(device(), offset, type);
+
+	//bind and alloc all to be allocated resources
+	for(auto& res : offsets)
+	{
+		auto& req = *res.first;
+		auto& offset = res.second;
+		auto& entry = *req.entry;
+
+		entry.allocation_ = mem->allocSpecified(offset, req.size, toAllocType(req.type));
+		entry.memory_ = mem.get();
+
+		auto isBuffer = (res.first->type == RequirementType::buffer);
+		if(isBuffer) vk::bindBufferMemory(device(), res.first->buffer, *mem, offset);
+		else vk::bindImageMemory(vkDevice(), res.first->image, *mem, offset);
+	}
+
+	memories_.push_back(std::move(mem));
+}
+
+
+spm::map<unsigned int, std::pmr::vector<DeviceMemoryAllocator::Requirement*>>
+DeviceMemoryAllocator::queryTypes()
+{
+	//XXX: probably one of the places where a custom host allocator would really speed things up
+	//XXX: probably there is some really easy and trivial algorithm for it... pls find it...
+
+	//this function implements an algorithm to choose the best type for each requirement from
+	//its typebits, so that in the end there will be as few allocations as possible needed.
+
+	//vector to return, holds requirements that have a type
+	auto& allctr = device().hostMemoryResource();
+	spm::map<unsigned int, std::pmr::vector<Requirement*>> ret(&allctr);
+
+	//map holding the current count of the different types
+	spm::map<unsigned int, std::pmr::vector<Requirement*>> occurences(&allctr);
+
+	//function to count the occurences of the different memory types and store them in
+	//the occurences map
+	auto countOccurences = [&]()
+	{
+		occurences.clear();
+		for(auto& req : requirements_)
+		{
+			for(auto i = 0u; i < 32; ++i)
+			{
+				if(supportsType(req, i))
+				{
+					std::pmr::vector<Requirement*> vec({&req}, {&allctr});
+
+					auto it = occurences.find(i);
+					if(it != occurences.cend()) it->second.push_back(&req);
+					else occurences.emplace(i, std::pmr::vector<Requirement*>{&req});
+				}
+			}
+		}
+	};
+
+	//initial occurences count
+	countOccurences();
+
+	//while there are requirements left that have not been moved into ret
+	while(!occurences.empty())
+	{
+		//find the least occuring type
+		//bestID is after this the memory type with the fewest requirements
+		auto best = requirements_.size() + 1; //cant be bigger than that
+		std::uint32_t bestID = 0u; //will hold the memory type with the LEAST requirements atm
+		for(auto& occ : occurences)
+		{
+			if(occ.second.size() < best)
+			{
+				best = occ.second.size();
+				bestID = occ.first;
+			}
+		}
+
+		//function to determine if other types besides the given are supported
+		auto othersSupported = [](const Requirement& req, unsigned int type)
+		{
+			for(auto i = 0u; i < 32; ++i)
+				if(i != type && supportsType(req, i)) return true;
+			return false;
+		};
+
+		//remove the type with the fewest occurences
+		//check if any of the reqs that can be allocated on bestID can ONLY be allocated
+		//on it. Then there has to be an allocation of type bestID made and all allocations that
+		//can be made on this type can be assiocated with it and sorted out.
+		//otherwise the type wont be considered for allocations any further.
+		bool canBeRemoved = true;
+		auto it = occurences.find(bestID);
+		for(auto& req : it->second)
+			if(!othersSupported(*req, bestID)) canBeRemoved = false;
+
+		//if it can be removed there must be at least one allocation for the given type
+		//push all reqs that can be allocated on the type to ret and remove them from occurences
+		if(canBeRemoved)
+		{
+			//remove the bestID type bit from all requirement type bits,
+			//to reduce the problems complexity
+			for(auto& req : it->second)
+				req->memoryTypes &= ~(1 << bestID);
+
+			//erase the occurences for bestID
+			//this is the only change to occurences so it does not have to be recounted
+			occurences.erase(bestID);
+		}
+		else
+		{
+			//set the requirements typebits to 0, indicating that it has a matching type
+			//this makes it no longer have any effect on countOccurences which makes sense,
+			//since we "removed" it
+			//one could alternatively really remove this from the requirements_ vector, but
+			//this would be less efficient
+			for(auto& req : it->second) req->memoryTypes = 0;
+
+			//insert the requirements that will be allocated on bestID into ret
+			ret.emplace(bestID, std::move(it->second));
+
+			//explicitly remove the occurences for the chosen bit.
+			//the other references to the now removed since type found requirements stay, but
+			//sice their memoryTypes member is 0, they will no longer be counted
+			occurences.erase(bestID);
+
+			//the occurences have to be recounted since the occurences for type bits other than
+			//best bestID (which will have 0 now) do not count longer (they have a type)
+			countOccurences();
+		}
+	}
+
+	return ret;
 }
 
 std::vector<DeviceMemory*> DeviceMemoryAllocator::memories() const
@@ -359,6 +458,53 @@ std::vector<DeviceMemory*> DeviceMemoryAllocator::memories() const
 	ret.reserve(memories_.size());
 	for(auto& mem : memories_) ret.push_back(mem.get());
 	return ret;
+}
+
+AllocationType DeviceMemoryAllocator::toAllocType(RequirementType type)
+{
+	switch(type)
+	{
+		case RequirementType::buffer:
+		case RequirementType::linearImage:
+			return AllocationType::linear;
+		case RequirementType::optimalImage:
+			return AllocationType::optimal;
+		default:
+			return AllocationType::none;
+	}
+}
+
+unsigned int DeviceMemoryAllocator::findBestType(std::uint32_t typeBits) const
+{
+	auto best = 0;
+	auto bestID = 0;
+
+	for(auto i = 0u; i < 32; ++i)
+	{
+		//start with one, so even if there are no matching reqs at all, at least a supported
+		//type bit is returned.
+		auto count = 1;
+		if(!supportsType(typeBits, i)) continue;
+		for(auto& req : requirements_) if(supportsType(req, i)) ++count;
+
+		if(count > best)
+		{
+			best = count;
+			bestID = i;
+		}
+	}
+
+	return bestID;
+}
+
+bool DeviceMemoryAllocator::supportsType(std::uint32_t typeBits, unsigned int type)
+{
+	return (typeBits & (1 << type));
+}
+
+bool DeviceMemoryAllocator::supportsType(const Requirement& req, unsigned int type)
+{
+	return supportsType(req.memoryTypes, type);
 }
 
 }

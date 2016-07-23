@@ -1,4 +1,7 @@
 #include <vpp/memory.hpp>
+#include <vpp/vk.hpp>
+#include <vpp/utility/debug.hpp>
+
 #include <iostream>
 #include <algorithm>
 
@@ -9,10 +12,10 @@ namespace vpp
 MemoryMap::MemoryMap(const DeviceMemory& memory, const Allocation& alloc)
 	: memory_(&memory), allocation_(alloc)
 {
-	if(!(memory.propertyFlags() & vk::MemoryPropertyFlagBits::HostVisible))
-		throw std::logic_error("vpp::MemoryMap: trying to map device local memory");
+	if(!(memory.properties() & vk::MemoryPropertyBits::hostVisible))
+		throw std::logic_error("vpp::MemoryMap: trying to map unmappable memory");
 
-	vk::mapMemory(vkDevice(), vkMemory(), offset(), size(), {}, &ptr_);
+	ptr_ = vk::mapMemory(vkDevice(), vkMemory(), offset(), size(), {});
 }
 
 MemoryMap::MemoryMap(MemoryMap&& other) noexcept
@@ -20,7 +23,7 @@ MemoryMap::MemoryMap(MemoryMap&& other) noexcept
 	swap(*this, other);
 }
 
-MemoryMap& MemoryMap::operator=(MemoryMap&& other) noexcept
+MemoryMap& MemoryMap::operator=(MemoryMap other) noexcept
 {
 	unmap();
 	swap(*this, other);
@@ -45,7 +48,7 @@ void MemoryMap::remap(const Allocation& allocation)
 	vk::unmapMemory(vkDevice(), vkMemory());
 	allocation_ = {nbeg, nsize};
 
-	vk::mapMemory(vkDevice(), vkMemory(), offset(), size(), {}, &ptr_);
+	ptr_ = vk::mapMemory(vkDevice(), vkMemory(), offset(), size(), {});
 }
 
 void swap(MemoryMap& a, MemoryMap& b) noexcept
@@ -58,46 +61,54 @@ void swap(MemoryMap& a, MemoryMap& b) noexcept
 	swap(a.views_, b.views_);
 }
 
+vk::MappedMemoryRange MemoryMap::mappedMemoryRange() const
+{
+	return {vkMemory(), offset(), size()};
+}
+
 const vk::DeviceMemory& MemoryMap::vkMemory() const
 {
-	return memory_->vkDeviceMemory();
+	return memory_->vkHandle();
 }
 
-void MemoryMap::flushRanges() const
+void MemoryMap::flush() const
 {
-	if(coherent())
+	VPP_DEBUG_CHECK(vpp::MemoryMap::flush,
 	{
-		std::cout << "vpp::MemoryMap::flushRanges: called but not needed, mem coherent\n";
-		return;
-	}
+		if(coherent())
+		{
+			VPP_DEBUG_OUTPUT("Called on coherent memory. Not needed.");
+			return;
+		}
+	})
 
 	auto range = mappedMemoryRange();
-	vk::flushMappedMemoryRanges(vkDevice(), 1, &range);
+	vk::flushMappedMemoryRanges(vkDevice(), 1, range);
 }
 
-void MemoryMap::invalidateRanges() const
+void MemoryMap::reload() const
 {
-	if(coherent())
+	VPP_DEBUG_CHECK(vpp::MemoryMap::invalidateRanges,
 	{
-		std::cout << "vpp::MemoryMap::invalidateRanges: called but not needed, mem coherent\n";
-		return;
-	}
+		if(coherent())
+		{
+			VPP_DEBUG_OUTPUT("Called on coherent memory. Not needed.");
+			return;
+		}
+	})
 
 	auto range = mappedMemoryRange();
-	vk::invalidateMappedMemoryRanges(vkDevice(), 1, &range);
+	vk::invalidateMappedMemoryRanges(vkDevice(), 1, range);
 }
 
 bool MemoryMap::coherent() const
 {
-	return memory().propertyFlags() & vk::MemoryPropertyFlagBits::HostCoherent;
+	return memory().properties() & vk::MemoryPropertyBits::hostCoherent;
 }
 
 void MemoryMap::unmap()
 {
-	if(memory_ && vkMemory() && ptr() && size())
-	{
-		vk::unmapMemory(memory().vkDevice(), vkMemory());
-	}
+	if(memory_ && vkMemory() && ptr() && size()) vk::unmapMemory(memory().vkDevice(), vkMemory());
 
 	memory_ = nullptr;
 	allocation_ = {};
@@ -139,28 +150,39 @@ MemoryMapView& MemoryMapView::operator=(MemoryMapView other) noexcept
 	return *this;
 }
 
-void MemoryMapView::flushRanges() const
+vk::MappedMemoryRange MemoryMapView::mappedMemoryRange() const
 {
-	if(coherent())
-	{
-		std::cout << "vpp::MemoryMapView::flushRanges: called but not needed, mem coherent\n";
-		return;
-	}
-
-	auto range = mappedMemoryRange();
-	vk::flushMappedMemoryRanges(vkDevice(), 1, &range);
+	return {vkMemory(), offset(), size()};
 }
 
-void MemoryMapView::invalidateRanges() const
+void MemoryMapView::flush() const
 {
-	if(coherent())
+	VPP_DEBUG_CHECK(vpp::MemoryMapView::flush,
 	{
-		std::cout << "vpp::MemoryMapView::invalidateRanges: called but not needed, mem coherent\n";
-		return;
-	}
+		if(coherent())
+		{
+			VPP_DEBUG_OUTPUT("Called on coherent memory. Not needed.");
+			return;
+		}
+	})
 
 	auto range = mappedMemoryRange();
-	vk::invalidateMappedMemoryRanges(vkDevice(), 1, &range);
+	vk::flushMappedMemoryRanges(vkDevice(), 1, range);
+}
+
+void MemoryMapView::reload() const
+{
+	VPP_DEBUG_CHECK(vpp::MemoryMapView::reload,
+	{
+		if(coherent())
+		{
+			VPP_DEBUG_OUTPUT("Called on coherent memory. Not needed.");
+			return;
+		}
+	})
+
+	auto range = mappedMemoryRange();
+	vk::invalidateMappedMemoryRanges(vkDevice(), 1, range);
 }
 
 std::uint8_t* MemoryMapView::ptr() const
@@ -170,7 +192,7 @@ std::uint8_t* MemoryMapView::ptr() const
 
 bool MemoryMapView::coherent() const
 {
-	return memory().propertyFlags() & vk::MemoryPropertyFlagBits::HostCoherent;
+	return memory().properties() & vk::MemoryPropertyBits::hostCoherent;
 }
 
 void swap(MemoryMapView& a, MemoryMapView& b) noexcept
@@ -183,46 +205,45 @@ void swap(MemoryMapView& a, MemoryMapView& b) noexcept
 
 //Memory
 DeviceMemory::DeviceMemory(const Device& dev, const vk::MemoryAllocateInfo& info)
-	: Resource(dev)
+	: ResourceHandle(dev)
 {
-	typeIndex_ = info.memoryTypeIndex();
-	size_ = info.allocationSize();
-	flags_ = dev.memoryProperties().memoryTypes()[typeIndex_].propertyFlags();
+	type_ = info.memoryTypeIndex;
+	size_ = info.allocationSize;
 
-	vk::allocateMemory(vkDevice(), &info, nullptr, &memory_);
+	vkHandle() = vk::allocateMemory(vkDevice(), info);
 }
 DeviceMemory::DeviceMemory(const Device& dev, std::uint32_t size, std::uint32_t typeIndex)
-	: Resource(dev)
+	: ResourceHandle(dev)
 {
-	typeIndex_ = typeIndex;
+	type_ = typeIndex;
 	size_ = size;
-	flags_ = dev.memoryProperties().memoryTypes()[typeIndex_].propertyFlags();
 
 	vk::MemoryAllocateInfo info;
-	info.allocationSize(size_);
-	info.memoryTypeIndex(typeIndex_);
-	vk::allocateMemory(vkDevice(), &info, nullptr, &memory_);
+	info.allocationSize = size_;
+	info.memoryTypeIndex = type_;
+
+	vkHandle() = vk::allocateMemory(vkDevice(), info);
 }
 DeviceMemory::DeviceMemory(const Device& dev, std::uint32_t size, vk::MemoryPropertyFlags flags)
-	: Resource(dev)
+	: ResourceHandle(dev)
 {
-	flags_ = flags;
-	typeIndex_ = device().memoryType(flags);
+	type_ = device().memoryType(flags);
 	size_ = size;
 
 	vk::MemoryAllocateInfo info;
-	info.allocationSize(size_);
-	info.memoryTypeIndex(typeIndex_);
-	vk::allocateMemory(vkDevice(), &info, nullptr, &memory_);
+	info.allocationSize = size_;
+	info.memoryTypeIndex = type_;
+
+	vkHandle() = vk::allocateMemory(vkDevice(), info);
 }
 DeviceMemory::~DeviceMemory()
 {
-	if(!allocations_.empty())
+	VPP_DEBUG_CHECK(vpp::DeviceMemory::~DeviceMemory,
 	{
-		std::cerr << "vpp::~DeviceMemory: there are " << allocations_.size() << "allocs left\n";
-	}
+		if(!allocations_.empty()) VPP_DEBUG_OUTPUT(allocations_.size(), "allocations left.");
+	})
 
-	if(vkDeviceMemory()) vk::freeMemory(vkDevice(), memory_, nullptr);
+	if(vkHandle()) vk::freeMemory(vkDevice(), vkHandle(), nullptr);
 }
 
 Allocation DeviceMemory::alloc(std::size_t size, std::size_t alignment, AllocationType type)
@@ -235,6 +256,29 @@ Allocation DeviceMemory::alloc(std::size_t size, std::size_t alignment, Allocati
 
 Allocation DeviceMemory::allocSpecified(std::size_t offset, std::size_t size, AllocationType type)
 {
+	VPP_DEBUG_CHECK(vpp::DeviceMemory::allocSpecified,
+	{
+		if(size == 0)
+		{
+			VPP_DEBUG_OUTPUT("size is not allowed to be 0");
+			return {};
+		}
+
+		for(auto& alloc : allocations_)
+		{
+			const auto& a = alloc.allocation;
+			const auto& overlapping = (a.offset < offset) != (a.offset + a.size <= offset);
+			const auto& inside = (a.offset >= offset) && (a.offset < offset + size);
+			if(overlapping || inside)
+			{
+				VPP_DEBUG_OUTPUT("invalid params ", offset, ' ', size, ' ', a.offset, ' ', a.size);
+				return {};
+			}
+		}
+
+		if(type == AllocationType::none) VPP_DEBUG_OUTPUT("type is none. Could later cause aliasing");
+	})
+
 	AllocationEntry allocation = {{offset, size}, type};
 	auto it = std::lower_bound(allocations_.begin(), allocations_.end(), allocation,
 		[](auto& a, auto& b){ return a.allocation.offset < b.allocation.offset; });
@@ -245,30 +289,112 @@ Allocation DeviceMemory::allocSpecified(std::size_t offset, std::size_t size, Al
 Allocation DeviceMemory::allocatable(std::size_t size, std::size_t alignment,
 	AllocationType type) const
 {
-	static const AllocationEntry start = {{0, 0}, AllocationType::none};
-	auto granularity = device().properties().limits().bufferImageGranularity();
+	//TODO: better allocation finding algorithm.
+	//atm the allocation with the least waste for alignment or granularity is chosen,
+	//but there may result small gaps between the allocation which will likely never
+	//be used. if an allocation fits a free segment between allocations really good, it should
+	//be chosen.
+	//
+	//e.g. --allocation---- || -----A) free 10MB----- || -----allocation---- || ----B) free 20MB---
+	//1) first call to allocatable: size 9MB, would fit free segment A as well as B
+	//B is chosen since it results in less space waste
+	//2) first call to allocatable: size 15MB, does now fit if none of the free segments
+	//if the first allocation had chosen segment A this second allocation would now
+	//fit in B.
+	//
+	//as new measurement the new sizes on both sides divided by the old (bigger) size could be
+	//a taken in account (smaller = better) since the new sizes on both sides should be as small as
+	//possible. true?
+
+	//some additional checks/warning
+	VPP_DEBUG_CHECK(vpp::DeviceMemory::allocatable,
+	{
+		if(type == AllocationType::none) VPP_DEBUG_OUTPUT("type is none. Can cause aliasing");
+
+		if(alignment % 2)
+		{
+			VPP_DEBUG_OUTPUT("alignment param ", alignment, "not a power of 2");
+			return {};
+		}
+
+		if(size == 0)
+		{
+			VPP_DEBUG_OUTPUT("size is not allowed to be 0");
+			return {};
+		}
+	})
+
+	static constexpr AllocationEntry start = {{0, 0}, AllocationType::none};
+	auto granularity = device().properties().limits.bufferImageGranularity;
+
+
+	//checks for best possible allocation
+	//the best allocation wastes the least space for alignment or granularity reqs
+	Allocation best = {};
+	std::size_t bestWaste = -1;
 
 	const AllocationEntry* old = &start;
-	for(auto& alloc : allocations_) {
-		auto alignedOffset = ((old->allocation.offset + alignment) & ~(alignment - 1));
-		if(old->type != AllocationType::none && old->type != alloc.type)
-			alignedOffset = (alignedOffset + granularity) & ~(granularity - 1);
+	for(auto& alloc : allocations_)
+	{
+		vk::DeviceSize alignedOffset = align(old->allocation.end(), alignment);
 
-		if((alloc.allocation.offset - alignedOffset) > size) return {alignedOffset, size};
+		//check for granularity between prev and to be inserted
+		if(old->type != AllocationType::none && old->type != type)
+			alignedOffset = align(alignedOffset, granularity);
+
+		//check for granularity between next and to be inserted
+		auto end = alignedOffset + size;
+		if(alloc.type != AllocationType::none && alloc.type != type)
+			end = align(end, granularity);
+
+		if(end < alloc.allocation.offset)
+		{
+			auto newWaste = alignedOffset - old->allocation.end();
+			newWaste += end - (alignedOffset + size);
+			if(newWaste < bestWaste)
+			{
+				bestWaste = newWaste;
+				best = {alignedOffset, size};
+			}
+		}
+
 		old = &alloc;
 	}
 
-	return {};
-}
+	//check for segment AFTER the last allcation, since the loop just checks the segments
+	//between two allocations
+	//just copied from above with the "new allocation" alloc being an empty past-end allocation
+	vk::DeviceSize alignedOffset = align(old->allocation.end(), alignment);
 
-void DeviceMemory::free(const Allocation& alloc)
-{
-	for(auto it = allocations_.cbegin(); it != allocations_.cend(); ++it) {
-		if(it->allocation.offset == alloc.offset && it->allocation.size == alloc.size) {
-			allocations_.erase(it);
-			return;
+	if(old->type != AllocationType::none && old->type != type)
+		alignedOffset = align(alignedOffset, granularity);
+
+	if(alignedOffset + size <= this->size())
+	{
+		auto newWaste = alignedOffset - old->allocation.offset;
+		if(newWaste < bestWaste)
+		{
+			bestWaste = newWaste;
+			best = {alignedOffset, size};
 		}
 	}
+
+	return best;
+}
+
+bool DeviceMemory::free(const Allocation& alloc)
+{
+	for(auto it = allocations_.cbegin(); it != allocations_.cend(); ++it)
+	{
+		if(it->allocation.offset == alloc.offset && it->allocation.size == alloc.size)
+		{
+			allocations_.erase(it);
+			return true;
+		}
+	}
+
+	VPP_DEBUG_OUTPUT_NOCHECK("vpp::DeviceMemory::free: could not find the given allocation");
+	return false;
 }
 
 std::size_t DeviceMemory::biggestBlock() const
@@ -299,13 +425,23 @@ std::size_t DeviceMemory::size() const
 
 MemoryMapView DeviceMemory::map(const Allocation& allocation)
 {
-	if(!(propertyFlags() & vk::MemoryPropertyFlagBits::HostVisible))
+	if(!(properties() & vk::MemoryPropertyBits::hostVisible))
 		throw std::logic_error("vpp::DeviceMemory::map: not mappable.");
 
 	if(!mapped()) memoryMap_ = MemoryMap(*this, allocation);
 	else memoryMap_.remap(allocation);
 
 	return MemoryMapView(memoryMap_, allocation);
+}
+
+vk::MemoryPropertyFlags DeviceMemory::properties() const
+{
+	return device().memoryProperties().memoryTypes[type()].propertyFlags;
+}
+
+bool DeviceMemory::mappable() const
+{
+	return properties() & vk::MemoryPropertyBits::hostVisible;
 }
 
 }

@@ -1,73 +1,29 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
-
-#include <iostream>
-#include <stdexcept>
-#include <unordered_map>
+#include <vpp/fwd.hpp>
 #include <string>
 
 namespace vpp
 {
 
-namespace detail
-{
-    template<typename T1, typename T2> using sup = std::unordered_map<T1, T2>;
-
-    extern sup<VkInstance, sup<std::string, PFN_vkVoidFunction>> instanceProcs;
-    extern sup<VkDevice, sup<std::string, PFN_vkVoidFunction>> deviceProcs;
-}
-
-
-inline PFN_vkVoidFunction instanceProc(VkInstance instance, const std::string& name)
-{
-    auto it = detail::instanceProcs[instance].find(name);
-    if(it == detail::instanceProcs[instance].cend())
-    {
-        auto addr = vkGetInstanceProcAddr(instance, name.c_str());
-		if(!addr)
-		{
-			std::cerr << "Failed to load proc " << name << " from instance " << instance << "\n";
-			return nullptr;
-		}
-
-        it = detail::instanceProcs[instance].insert({name, addr}).first;
-    }
-
-    return it->second;
-}
-
-inline PFN_vkVoidFunction deviceProc(VkDevice device, const std::string& name)
-{
-    auto it = detail::deviceProcs[device].find(name);
-    if(it == detail::deviceProcs[device].cend())
-    {
-        auto addr = vkGetDeviceProcAddr(device, name.c_str());
-		if(!addr)
-		{
-			std::cerr << "Failed to load proc " << name << " from device " << device << "\n";
-			return nullptr;
-		}
-
-        it = detail::deviceProcs[device].insert({name, addr}).first;
-    }
-
-    return it->second;
-}
+vk::PfnVoidFunction vulkanProc(vk::Instance instance, const char* name);
+vk::PfnVoidFunction vulkanProc(vk::Device device, const char* name);
 
 }
 
-//macros for getting functions pointers
-#define VPP_INSTANCE_PROC(inst, name) \
-    reinterpret_cast<PFN_vk##name>(::vpp::instanceProc(inst, vk#name));
+///Macro for calling a vulkan function pointer.
+///\param iniOrDev vulkan instance or device (depending on which kind of function pointer).
+///\param name the name of the function without vk prefix (e.g. CreateSurfaceKHR)
+///Can be e.g. used like VPP_PROC(instance, CreateSurfaceKHR)(instance, info);
+///If the function pointer cannot be retrieved this macro will evaluate to nullptr,
+///so direct calling should be used with care.
+#define VPP_PROC(iniOrDev, name) \
+	reinterpret_cast<::vk::Pfn##name>(::vpp::vulkanProc(iniOrDev, "vk"#name))
 
-
-#define VPP_DEVICE_PROC(device, name) \
-    reinterpret_cast<PFN_vk##name>(::vpp::deviceProc(device, vk#name));
-
-//store them in a fp<> var
-#define VPP_LOAD_INSTANCE_PROC(inst, name) \
-        auto fp##name = reinterpret_cast<PFN_vk##name>(::vpp::instanceProc(inst, "vk"#name));
-
-#define VPP_LOAD_DEVICE_PROC(device, name) \
-        auto fp##name = reinterpret_cast<PFN_vk##name>(::vpp::deviceProc(device, "vk"#name));
+///Macro for storing a vulkan function pointer.
+///\param iniOrDev vulkan instance or device (depending on which kind of function pointer).
+///\param name the name of the function pointer without vk prefix.
+///This macro creates a variable in the current scope with the name pf<name> that
+///holds a pointer to the vulkan function or a nullptr if it could not be retrieved.
+#define VPP_LOAD_PROC(iniOrDev, name) \
+	auto pf##name = reinterpret_cast<::vk::Pfn##name>(::vpp::vulkanProc(iniOrDev, "vk"#name))

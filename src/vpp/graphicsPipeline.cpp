@@ -1,155 +1,192 @@
 #include <vpp/graphicsPipeline.hpp>
-#include <vpp/context.hpp>
 #include <vpp/shader.hpp>
-#include <vpp/buffer.hpp>
+#include <vpp/image.hpp>
+#include <vpp/vk.hpp>
+
+#include <utility>
+#include <algorithm>
 
 namespace vpp
 {
 
-//info default ctor
-GraphicsPipeline::StatesCreateInfo::StatesCreateInfo(const vk::Viewport& viewportinfo)
+GraphicsPipelineBuilder::GraphicsPipelineBuilder(const Device& dev, vk::RenderPass rp,
+	unsigned int xsubpass) : shader(dev), renderPass(rp), subpass(xsubpass)
 {
-	//needed data
-	blendAttachments_.emplace_back();
-	blendAttachments_.back().blendEnable(false);
-	blendAttachments_.back().colorWriteMask(
-		vk::ColorComponentFlagBits::R |
-		vk::ColorComponentFlagBits::G |
-		vk::ColorComponentFlagBits::B |
-		vk::ColorComponentFlagBits::A
-	);
-
-	viewports_.emplace_back(viewportinfo);
-
-	vk::Extent2D extent(viewportinfo.width(), viewportinfo.height());
-	scissors_.push_back({{0, 0}, extent});
-
-	//structs
-	vk::StencilOpState stencil;
-	stencil.failOp(vk::StencilOp::Keep);
-	stencil.passOp(vk::StencilOp::Keep);
-	stencil.compareOp(vk::CompareOp::Always);
+	dynamicStates = {vk::DynamicState::viewport, vk::DynamicState::scissor};
 
 	//fill
-	inputAssembly.topology(vk::PrimitiveTopology::TriangleList);
+	states.inputAssembly.topology = vk::PrimitiveTopology::triangleList;
 
-	rasterization.polygonMode(vk::PolygonMode::Fill);
-	rasterization.cullMode(vk::CullModeFlagBits::Back);
-	rasterization.frontFace(vk::FrontFace::CounterClockwise);
-	rasterization.depthClampEnable(true);
-	rasterization.rasterizerDiscardEnable(false);
-	rasterization.depthBiasEnable(false);
-	rasterization.lineWidth(1.f);
+	states.rasterization.polygonMode = vk::PolygonMode::fill;
+	states.rasterization.cullMode = vk::CullModeBits::none;
+	states.rasterization.frontFace = vk::FrontFace::counterClockwise;
+	states.rasterization.depthClampEnable = true;
+	states.rasterization.rasterizerDiscardEnable = false;
+	states.rasterization.depthBiasEnable = false;
+	states.rasterization.lineWidth = 1.f;
 
-	colorBlend.attachmentCount(blendAttachments_.size());
-	colorBlend.pAttachments(blendAttachments_.data());
+	//blendAttachments
+	states.blendAttachments.emplace_back();
+	states.blendAttachments.back().blendEnable = false;
+	states.blendAttachments.back().colorWriteMask =
+		vk::ColorComponentBits::r |
+		vk::ColorComponentBits::g |
+		vk::ColorComponentBits::b |
+		vk::ColorComponentBits::a;
 
-	viewport.viewportCount(viewports_.size());
-	viewport.pViewports(viewports_.data());
-	viewport.scissorCount(scissors_.size());
-	viewport.pScissors(scissors_.data());
+	//stencil
+	vk::StencilOpState stencil;
+	stencil.failOp = vk::StencilOp::keep;
+	stencil.passOp = vk::StencilOp::keep;
+	stencil.compareOp = vk::CompareOp::always;
 
-	depthStencil.depthTestEnable(true);
-	depthStencil.depthWriteEnable(true);
-	depthStencil.depthCompareOp(vk::CompareOp::LessOrEqual);
-	depthStencil.depthBoundsTestEnable(false);
-	depthStencil.stencilTestEnable(false);
-	depthStencil.back(stencil);
-	depthStencil.front(stencil);
+	states.depthStencil.depthTestEnable = true;
+	states.depthStencil.depthWriteEnable = true;
+	states.depthStencil.depthCompareOp = vk::CompareOp::lessOrEqual;
+	states.depthStencil.depthBoundsTestEnable = false;
+	states.depthStencil.stencilTestEnable = false;
+	states.depthStencil.back = stencil;
+	states.depthStencil.front = stencil;
 
-	multisample.pSampleMask(nullptr);
-	multisample.rasterizationSamples(vk::SampleCountFlagBits::e1);
+	//multisample
+	states.multisample.pSampleMask = nullptr;
+	states.multisample.rasterizationSamples = vk::SampleCountBits::e1;
 }
 
-//pipeline
-GraphicsPipeline::GraphicsPipeline(const Device& device, const CreateInfo& createInfo)
+GraphicsPipelineBuilder::GraphicsPipelineBuilder(const GraphicsPipelineBuilder& other)
+	: renderPass(other.renderPass), subpass(other.subpass), layout(other.layout),
+		vertexBufferLayouts(other.vertexBufferLayouts), flags(other.flags),
+		dynamicStates(other.dynamicStates), states(other.states), shader(copy(other.shader))
 {
-	init(device, createInfo);
 }
 
-void GraphicsPipeline::init(const Device& device, const CreateInfo& createInfo)
+GraphicsPipelineBuilder& GraphicsPipelineBuilder::operator=(const GraphicsPipelineBuilder& other)
 {
-	destroy();
-	Pipeline::init(device);
+	renderPass = other.renderPass;
+	subpass = other.subpass;
+	layout = other.layout;
+	vertexBufferLayouts = other.vertexBufferLayouts;
+	flags = other.flags;
+	dynamicStates = other.dynamicStates;
+	states = other.states;
+	shader = copy(other.shader);
 
-	//vertexInfo
-	vk::PipelineVertexInputStateCreateInfo vertexInfo;
+	return *this;
+}
+
+Pipeline GraphicsPipelineBuilder::build(vk::PipelineCache cache)
+{
+	auto info = parse();
+	vk::Pipeline pipeline;
+	vk::createGraphicsPipelines(shader.device(), cache, 1, info, nullptr, pipeline);
+	return Pipeline(shader.device(), pipeline);
+}
+
+vk::GraphicsPipelineCreateInfo GraphicsPipelineBuilder::parse()
+{
+	vk::GraphicsPipelineCreateInfo ret;
+
+	//reset
+	bindingDescriptions_.clear();
+	attributeDescriptions_.clear();
 
 	//Binding description
 	std::size_t attributeCount = 0;
-	for(auto& layout : createInfo.vertexBufferLayouts)
-		attributeCount += layout->attributes.size();
+	for(auto& layout : vertexBufferLayouts)
+		attributeCount += layout.attributes.size();
 
-	std::vector<vk::VertexInputBindingDescription> bindingDescriptions;
-	bindingDescriptions.reserve(createInfo.vertexBufferLayouts.size());
+	bindingDescriptions_.reserve(vertexBufferLayouts.size());
+	attributeDescriptions_.reserve(attributeCount);
 
-	std::vector<vk::VertexInputAttributeDescription> attributeDescriptions;
-	attributeDescriptions.reserve(attributeCount);
-
-	for(auto& layout : createInfo.vertexBufferLayouts)
+	for(auto& layout : vertexBufferLayouts)
 	{
 		std::size_t location = 0;
 		std::size_t offset = 0;
 
-		for(auto& attribute : layout->attributes)
+		for(auto& attribute : layout.attributes)
 		{
-			attributeDescriptions.emplace_back();
-			attributeDescriptions.back().location(location++);
-			attributeDescriptions.back().binding(layout->binding);
-			attributeDescriptions.back().format(attribute);
-			attributeDescriptions.back().offset(offset);
-			offset += formatSize(attribute) / 8;
+			attributeDescriptions_.emplace_back();
+			attributeDescriptions_.back().location = location++;
+			attributeDescriptions_.back().binding = layout.binding;
+			attributeDescriptions_.back().format = attribute;
+			attributeDescriptions_.back().offset = offset;
+			offset += formatSize(attribute);
 		}
 
-		bindingDescriptions.emplace_back();
-		bindingDescriptions.back().binding(layout->binding);
-		bindingDescriptions.back().stride(offset);
-		bindingDescriptions.back().inputRate(vk::VertexInputRate::Vertex);
+		bindingDescriptions_.emplace_back();
+		bindingDescriptions_.back().binding = layout.binding;
+		bindingDescriptions_.back().stride = offset;
+		bindingDescriptions_.back().inputRate = vk::VertexInputRate::vertex; ///XXX: paramterize
 	}
 
-	vertexInfo.vertexBindingDescriptionCount(bindingDescriptions.size());
-	vertexInfo.pVertexBindingDescriptions(bindingDescriptions.data());
-	vertexInfo.vertexAttributeDescriptionCount(attributeDescriptions.size());
-	vertexInfo.pVertexAttributeDescriptions(attributeDescriptions.data());
+	vertexInfo_.vertexBindingDescriptionCount = bindingDescriptions_.size();
+	vertexInfo_.pVertexBindingDescriptions = bindingDescriptions_.data();
+	vertexInfo_.vertexAttributeDescriptionCount = attributeDescriptions_.size();
+	vertexInfo_.pVertexAttributeDescriptions = attributeDescriptions_.data();
 
-	//pipeline layout
-	std::vector<vk::DescriptorSetLayout> descriptorSetLayouts;
-	descriptorSetLayouts.reserve(createInfo.descriptorSetLayouts.size());
+	//update states with data
+	states.colorBlend.attachmentCount = states.blendAttachments.size();
+	states.colorBlend.pAttachments = states.blendAttachments.data();
 
-	for(auto& layout : createInfo.descriptorSetLayouts)
-		descriptorSetLayouts.push_back(layout->vkDescriptorSetLayout());
+	states.viewport.viewportCount = states.viewports.size();
+	states.viewport.pViewports = states.viewports.data();
+	states.viewport.scissorCount = states.scissors.size();
+	states.viewport.pScissors = states.scissors.data();
 
-	vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
-	pipelineLayoutInfo.setLayoutCount(descriptorSetLayouts.size());
-	pipelineLayoutInfo.pSetLayouts(descriptorSetLayouts.data());
+	if(std::find(dynamicStates.begin(), dynamicStates.end(), vk::DynamicState::scissor)
+		!= dynamicStates.end() && !states.scissors.size()) states.viewport.scissorCount = 1;
 
-	vk::createPipelineLayout(vkDevice(), &pipelineLayoutInfo, nullptr, &pipelineLayout_);
+	if(std::find(dynamicStates.begin(), dynamicStates.end(), vk::DynamicState::viewport)
+		!= dynamicStates.end() && !states.viewports.size()) states.viewport.viewportCount = 1;
 
 	//dynamic state
-	vk::PipelineDynamicStateCreateInfo dynamicState;
-	dynamicState.pDynamicStates(createInfo.dynamicStates.data());
-	dynamicState.dynamicStateCount(createInfo.dynamicStates.size());
+	if(!dynamicStates.empty())
+	{
+		dynamicState_.pDynamicStates = dynamicStates.data();
+		dynamicState_.dynamicStateCount = dynamicStates.size();
+		ret.pDynamicState = &dynamicState_;
+	}
 
-	//create it
-	//why is this needed? app crashes without copying it
-	auto infos = createInfo.shader.vkStageInfos();
-	vk::GraphicsPipelineCreateInfo pipelineInfo;
+	stageInfos_ = shader.vkStageInfos();
+	ret.stageCount = stageInfos_.size();
+	ret.pStages = stageInfos_.data();
 
-	pipelineInfo.layout(pipelineLayout_);
-	pipelineInfo.pVertexInputState(&vertexInfo);
-	pipelineInfo.pDynamicState(&dynamicState);
-	pipelineInfo.renderPass(createInfo.renderPass);
-	pipelineInfo.stageCount(infos.size());
-	pipelineInfo.pStages(infos.data());
-	pipelineInfo.pInputAssemblyState(&createInfo.states.inputAssembly);
-	pipelineInfo.pRasterizationState(&createInfo.states.rasterization);
-	pipelineInfo.pColorBlendState(&createInfo.states.colorBlend);
-	pipelineInfo.pMultisampleState(&createInfo.states.multisample);
-	pipelineInfo.pViewportState(&createInfo.states.viewport);
-	pipelineInfo.pDepthStencilState(&createInfo.states.depthStencil);
-	pipelineInfo.pTessellationState(nullptr);
+	ret.pViewportState = &states.viewport;
+	ret.layout = layout;
+	ret.pVertexInputState = &vertexInfo_;
+	ret.renderPass = renderPass;
+	ret.subpass = subpass;
+	ret.pInputAssemblyState = &states.inputAssembly;
+	ret.pRasterizationState = &states.rasterization;
+	ret.pColorBlendState = &states.colorBlend;
+	ret.pMultisampleState = &states.multisample;
+	ret.pDepthStencilState = &states.depthStencil;
+	ret.pTessellationState = nullptr;
 
-	vk::createGraphicsPipelines(vkDevice(), 0, 1, &pipelineInfo, nullptr, &pipeline_);
+	return ret;
+}
+
+std::vector<Pipeline> createGraphicsPipelines(const Device& dev,
+	const Range<vk::GraphicsPipelineCreateInfo>& infos, vk::PipelineCache cache)
+{
+	auto pipelines = vk::createGraphicsPipelines(dev, cache, infos);
+	std::vector<Pipeline> ret;
+	ret.reserve(pipelines.size());
+	for(auto& p : pipelines) ret.emplace_back(dev, p);
+	return ret;
+}
+
+std::vector<Pipeline> createGraphicsPipelines(
+	const Range<std::reference_wrapper<GraphicsPipelineBuilder>>& builder,
+	vk::PipelineCache cache)
+{
+	if(builder.empty()) return {};
+
+	std::vector<vk::GraphicsPipelineCreateInfo> infos;
+	infos.reserve(builder.size());
+	for(auto& b : builder) infos.push_back(b.get().parse());
+
+	return createGraphicsPipelines(builder.front().get().shader.device(), infos, cache);
 }
 
 }

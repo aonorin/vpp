@@ -1,12 +1,13 @@
 #pragma once
 
 #include <vpp/fwd.hpp>
-#include <vpp/vk.hpp>
 #include <vpp/resource.hpp>
+#include <vpp/queue.hpp>
 #include <vpp/submit.hpp>
 #include <vpp/commandBuffer.hpp>
 
 #include <memory>
+#include <iostream>
 
 namespace vpp
 {
@@ -54,6 +55,10 @@ class Work<void> : public WorkBase
 {
 };
 
+//Convinience typedefs
+using WorkPtr = std::unique_ptr<Work<void>>;
+using DataWorkPtr = std::unique_ptr<Work<std::uint8_t&>>;
+
 ///Work implementation that can be used (for void or derived from for other types) to signal that
 ///there is no work to be done. This may be used e.g. in cases where functions might require
 ///additional gpu work and therefore return a work pointer, but in some cases there is no extra
@@ -76,19 +81,17 @@ class CommandWork : public Work<R>
 {
 public:
 	CommandWork() = default;
-	CommandWork(CommandBuffer&& buffer) : cmdBuffer_(std::move(buffer)) { queue(); }
+	CommandWork(CommandBuffer&& buffer, vk::Queue queue);
 
 	virtual void submit() override;
 	virtual void finish() override;
 	virtual void wait() override;
 	virtual WorkBase::State state() override;
 
-	virtual void queue();
-
-protected:
+public:
 	CommandBuffer cmdBuffer_;
 	CommandExecutionState executionState_;
-	WorkBase::State state_ {};
+	WorkBase::State state_ {WorkBase::State::none};
 };
 
 ///Manages (i.e. submits and waits) for multiple work objects.

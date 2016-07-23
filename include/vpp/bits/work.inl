@@ -1,6 +1,13 @@
 #pragma once
 
 template<typename R>
+CommandWork<R>::CommandWork(CommandBuffer&& cmdBuf, vk::Queue queue) : cmdBuffer_(std::move(cmdBuf))
+{
+	cmdBuffer_.device().submitManager().add(queue, cmdBuffer_, &executionState_);
+	state_ = WorkBase::State::pending;
+}
+
+template<typename R>
 void CommandWork<R>::submit()
 {
 	if(Work<R>::submitted()) return;
@@ -28,21 +35,6 @@ void CommandWork<R>::finish()
 	cmdBuffer_ = {}; //free the commandBuffer it is no longer needed
 
 	state_ = WorkBase::State::finished;
-}
-
-template<typename R>
-void CommandWork<R>::queue()
-{
-	vk::SubmitInfo submitInfo;
-	submitInfo.commandBufferCount(1);
-	submitInfo.pCommandBuffers(&cmdBuffer_.vkCommandBuffer());
-
-	//TODO: correct queues
-	auto queue = cmdBuffer_.device().queue(cmdBuffer_.commandPool().queueFamily());
-	if(!queue) throw std::logic_error("dummy1");
-
-	executionState_ = cmdBuffer_.device().submitManager().add(queue->queue, submitInfo);
-	state_ = WorkBase::State::pending;
 }
 
 template<typename R>

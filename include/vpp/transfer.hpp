@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vpp/fwd.hpp>
-#include <vpp/vk.hpp>
 #include <vpp/resource.hpp>
 #include <vpp/buffer.hpp>
 #include <vpp/utility/allocation.hpp>
@@ -31,10 +30,10 @@ public:
 		~BufferRange();
 
 		BufferRange(BufferRange&& other) noexcept;
-		BufferRange& operator=(BufferRange&& other) noexcept;
+		BufferRange& operator=(BufferRange other) noexcept;
 
 		const Buffer& buffer() const { return buffer_->buffer(); }
-		vk::Buffer vkBuffer() const { return buffer().vkBuffer(); }
+		vk::Buffer vkBuffer() const { return buffer(); }
 		const Allocation& allocation() const { return allocation_; }
 		std::size_t offset() const { return allocation().offset; }
 		std::size_t size() const { return allocation().size; }
@@ -102,5 +101,13 @@ protected:
 
 ///Convinient typedef for TransferManager::BufferRange
 using TransferRange = TransferManager::BufferRange;
+
+///Returns a queue family that supports graphics, compute or transfer operations and can therefore
+///be used for copy operations.
+///Guarantees that there exists at least one queue for the given device with the returned queue
+///family.
+///Returns -1 if there is no such family, although there usually should be.
+///If queue if not nullptr, will store a pointer to a queue of the returned family into it.
+int transferQueueFamily(const Device& dev, const Queue** queue = nullptr);
 
 }

@@ -1,10 +1,9 @@
-include_directories("$ENV{VK_SDK_PATH}/Include")
-
+#default sources
 set(vpp-sources
 	allocator.cpp
     context.cpp
-    surface.cpp
-    swapChain.cpp
+    device.cpp
+    descriptor.cpp
     procAddr.cpp
 	renderer.cpp
 	memory.cpp
@@ -21,30 +20,39 @@ set(vpp-sources
 	renderPass.cpp
 	commandBuffer.cpp
 	submit.cpp
+    surface.cpp
+    swapChain.cpp
 	transfer.cpp
 	work.cpp
-	provider.cpp)
+	queue.cpp
+	provider.cpp
 
-if(WIN32 OR MSYS OR MINGW)
-	set(VPP_WINDOWS 1)
-else()
-	set(VPP_WINDOWS 0)
-endif()
+	../../external/boost/src/global_resource.cpp
+	../../external/boost/src/pool_resource.cpp
+	../../external/boost/src/synchronized_pool_resource.cpp
+	../../external/boost/src/unsynchronized_pool_resource.cpp
+	../../external/boost/src/monotonic_buffer_resource.cpp
+	../../external/boost/src/alloc_lib.c
+	../../external/boost/src/dlmalloc.cpp
 
+	utility/file.cpp)
+
+#add backends
 if(${VPP_WINDOWS})
 	set(vpp-sources ${vpp-sources} backend/win32.cpp)
 elseif(UNIX)
-	set(vpp-sources ${vpp-sources} backend/xcb.cpp backend/wayland.cpp)
+	set(vpp-sources ${vpp-sources} backend/xcb.cpp backend/wayland.cpp backend/xlib.cpp)
 endif()
 
+#library
 add_library(vpp SHARED ${vpp-sources})
+add_dependencies(vpp vkHeaders)
 
-if(${VPP_WINDOWS})
-	target_link_libraries(vpp "$ENV{VK_SDK_PATH}/Source/lib/vulkan-1.dll")
-elseif()
-	target_link_libraries(vpp "vulkan")
-endif()
+#link to vulkan
+link_directories("${CMAKE_SOURCE_DIR}/external/lib")
+target_link_libraries(vpp ${vulkan-lib})
 
+#install
 install(TARGETS vpp
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib

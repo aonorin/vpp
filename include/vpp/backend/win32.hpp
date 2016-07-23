@@ -2,40 +2,22 @@
 
 #define VK_USE_PLATFORM_WIN32_KHR
 
-#include <vpp/vk.hpp>
+#include <vpp/fwd.hpp>
 #include <vpp/surface.hpp>
 #include <vpp/context.hpp>
 
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
 namespace vpp
 {
 
-//Surface
-class Win32Surface : public Surface
-{
-protected:
-    void initSurface(HINSTANCE hinstance, HWND hwnd);
+///Creates a win32 surface for the given vulkan instance, win32 window and module [optional].
+///Does require the needed extensions to be enabled for the given instance.
+Surface createSurface(vk::Instance instance, HWND window, HINSTANCE module = nullptr);
 
-public:
-	Win32Surface() = default;
-	Win32Surface(vk::Instance instance, HWND hwnds);
-    Win32Surface(vk::Instance instance, HINSTANCE hinstance, HWND hwnd);
-};
-
-//Context
-class Win32Context : public Context
-{
-protected:
-	Win32Surface surface_;
-
-public:
-	Win32Context() = default;
-	Win32Context(const CreateInfo& info, HWND hwnds);
-	Win32Context(const CreateInfo& info, HINSTANCE hinstance, HWND hwnd);
-	virtual ~Win32Context();
-
-	virtual const Surface& surface() const override { return surface_; }
-};
+///Creates a win32 context for the given window.
+Context createContext(HWND window, Context::CreateInfo info, HINSTANCE module = nullptr);
+Context createContext(HWND window, HINSTANCE module = nullptr);
 
 }

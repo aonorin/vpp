@@ -1,6 +1,5 @@
 #pragma once
 
-#include <vpp/vk.hpp>
 #include <vpp/fwd.hpp>
 #include <vpp/resource.hpp>
 
@@ -11,63 +10,46 @@ namespace vpp
 
 ///Vulkan Renderpass. Can be created just from a vulkan device.
 ///Stores its description information.
-class RenderPass : public Resource
+class RenderPass : public ResourceHandle<vk::RenderPass>
 {
-protected:
-	vk::RenderPass renderPass_ {};
-
-	std::vector<vk::AttachmentDescription> attachments_;
-	std::vector<vk::SubpassDescription> subpasses_;
-	std::vector<vk::SubpassDependency> dependencies_;
-	std::vector<vk::AttachmentReference> references_;
-
-protected:
-	void init(const Device& dev, const vk::RenderPassCreateInfo& info);
-	void initInfos(const vk::RenderPassCreateInfo& info);
-
-	void destroy();
-
 public:
 	RenderPass() = default;
 	RenderPass(const Device& dev, const vk::RenderPassCreateInfo& info);
 	RenderPass(const Device& dev, vk::RenderPass pass, const vk::RenderPassCreateInfo& info);
 	~RenderPass();
 
-	RenderPass(RenderPass&& other) noexcept;
-	RenderPass& operator=(RenderPass&& other) noexcept;
-
-	void swap(RenderPass& other) noexcept;
-
-	vk::RenderPass vkRenderPass() const { return renderPass_; }
+	RenderPass(RenderPass&& other) noexcept = default;
+	RenderPass& operator=(RenderPass&& other) noexcept = default;
 
 	const std::vector<vk::AttachmentDescription>& attachments() const { return attachments_; }
 	const std::vector<vk::SubpassDependency>& dependencies() const { return dependencies_; }
 	const std::vector<vk::SubpassDescription>& subpasses() const { return subpasses_; }
 	const std::vector<vk::AttachmentReference>& references() const { return references_; }
+
+protected:
+	std::vector<vk::AttachmentDescription> attachments_;
+	std::vector<vk::SubpassDescription> subpasses_;
+	std::vector<vk::SubpassDependency> dependencies_;
+	std::vector<vk::AttachmentReference> references_;
 };
 
+//XXX: class at the moment not useful, can later be used for addtional features/checks
+//XXX: if without additional stuff, at least make it a struct with public members.
 ///Vulkan RenderPass Instance, i.e. a commandbuffer recording session during a render pass.
-class RenderPassInstance : public Resource
+class RenderPassInstance : public NonCopyable
 {
 protected:
-	const RenderPass& renderPass_ {};
+	vk::RenderPass renderPass_ {};
 	vk::CommandBuffer commandBuffer_ {};
 	vk::Framebuffer framebuffer_ {};
 
-	unsigned int currentSubpass_ {0};
-
 public:
-	RenderPassInstance(vk::CommandBuffer cmdbuffer, const RenderPass& pass,
-		vk::Framebuffer framebuffer);
+	RenderPassInstance(vk::CommandBuffer cmdbuf, vk::RenderPass pass, vk::Framebuffer framebuffer);
 	~RenderPassInstance();
 
-	const RenderPass& renderPass() const { return renderPass_; }
-	vk::CommandBuffer vkCommandBuffer() const { return commandBuffer_; }
-	vk::Framebuffer vkFramebuffer() const { return framebuffer_; }
-
-	unsigned int currentSubpass() const { return currentSubpass_; }
-	void nextSubpass();
+	const vk::RenderPass& renderPass() const { return renderPass_; }
+	const vk::CommandBuffer& vkCommandBuffer() const { return commandBuffer_; }
+	const vk::Framebuffer& vkFramebuffer() const { return framebuffer_; }
 };
-
 
 }

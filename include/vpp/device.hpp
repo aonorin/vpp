@@ -1,10 +1,10 @@
 #pragma once
 
-#include <vpp/vk.hpp>
 #include <vpp/fwd.hpp>
 #include <vpp/utility/nonCopyable.hpp>
 
 #include <memory>
+#include <vector>
 
 namespace vpp
 {
@@ -16,31 +16,18 @@ namespace vpp
 ///valid.
 ///Notice that Device is one of the few classes that are NOT movable since it is references by
 ///all resources.
-class Device : public NonMoveable
+class Device : public NonMovable
 {
 public:
-	struct Queue
-	{
-		vk::Queue queue;
-		vk::QueueFamilyProperties properties;
-		unsigned int family;
-		unsigned int id;
-	};
-
-public:
 	Device();
-    Device(vk::Instance ini, vk::PhysicalDevice phdev, const vk::DeviceCreateInfo& info);
-    ~Device();
-
-    const VkInstance& vkInstance() const { return instance_; }
-    const VkPhysicalDevice& vkPhysicalDevice() const { return physicalDevice_; }
-    const VkDevice& vkDevice() const { return device_; }
+	Device(vk::Instance ini, vk::PhysicalDevice phdev, const vk::DeviceCreateInfo& info);
+	~Device();
 
 	///Waits until all operations on this device are finished.
-    void waitIdle() const;
+	void waitIdle() const;
 
 	///Returns all available queues for the created device.
-	const std::vector<Queue>& queues() const { return queues_; }
+	Range<std::unique_ptr<Queue>> queues() const;
 
 	///Returns a queue for the given family or nullptr if there is none.
 	const Queue* queue(std::uint32_t family) const;
@@ -51,48 +38,58 @@ public:
 	///Returns a queue that matches the given flags or nullptr if there is none.
 	const Queue* queue(vk::QueueFlags flags) const;
 
-	const vk::PhysicalDeviceMemoryProperties& memoryProperties() const { return memoryProperties_; }
-	const vk::PhysicalDeviceProperties& properties() const { return physicalDeviceProperties_; }
+	const vk::PhysicalDeviceMemoryProperties& memoryProperties() const;
+	const vk::PhysicalDeviceProperties& properties() const;
+
+	///Returns the queue properties for the given queue family.
+	const vk::QueueFamilyProperties& queueFamilyProperties(std::uint32_t qFamily) const;
 
 	///Returns the first memoryType for the given memoryTypeBits and flags or -1 if there is none.
 	int memoryType(vk::MemoryPropertyFlags mflags, std::uint32_t typeBits = ~0u) const;
 
 	///Returns a bitmask of memoryTypes that match the given parameters.
-	std::uint32_t memoryTypeBits(vk::MemoryPropertyFlags mflags, std::uint32_t typeBits = ~0u) const;
+	std::uint32_t memoryTypeBits(vk::MemoryPropertyFlags mflags,
+		std::uint32_t typeBits = ~0u) const;
 
 	///Returns a CommandBufferProvider that can be used to easily allocate a command buffer in the
 	///current thread.
-	CommandBufferProvider& commandBufferProvider() const { return *cbProvider_; }
+	CommandProvider& commandProvider() const;
 
 	///Returns a DeviceMemoryProvider that can be used to easily allocate vulkan device memory in the
 	///current thread.
-	DeviceMemoryProvider& deviceMemoryProvider() const { return *dmProvider_; }
+	DeviceMemoryProvider& memoryProvider() const;
+
+	///Returns the host memory provider/ memory pool.
+	HostMemoryProvider& hostMemoryProvider() const;
 
 	///Returns the submit manager for this device.
-	SubmitManager& submitManager() const { return *submitManager_; }
+	SubmitManager& submitManager() const;
 
-	TransferManager& transferManager() const { return *transferManager_; }
+	///Return the default transferManager for this device.
+	TransferManager& transferManager() const;
 
-	///Makes sure that all queues setup commandBuffers have been executed.
+	///Makes sure that all queued setup commandBuffers have been executed.
 	void finishSetup() const;
 
 	///Returns a deviceMemory allocator for the calling thread.
-	DeviceMemoryAllocator& deviceMemoryAllocator() const;
+	DeviceMemoryAllocator& deviceAllocator() const;
+
+	///Returns a HostMemoryAllocator for the calling thread.
+	std::pmr::memory_resource& hostMemoryResource() const;
+
+	const vk::Instance& vkInstance() const { return instance_; }
+	const vk::PhysicalDevice& vkPhysicalDevice() const { return physicalDevice_; }
+	const vk::Device& vkDevice() const { return device_; }
+
+	operator vk::Device() const { return vkDevice(); }
 
 protected:
-    vk::Instance instance_ {};
-    vk::PhysicalDevice physicalDevice_ {};
-    vk::Device device_ {};
+	vk::Instance instance_ {};
+	vk::PhysicalDevice physicalDevice_ {};
+	vk::Device device_ {};
 
-	std::vector<Queue> queues_;
-
-	vk::PhysicalDeviceMemoryProperties memoryProperties_ {};
-	vk::PhysicalDeviceProperties physicalDeviceProperties_ {};
-
-	std::unique_ptr<CommandBufferProvider> cbProvider_;
-	std::unique_ptr<DeviceMemoryProvider> dmProvider_;
-	std::unique_ptr<SubmitManager> submitManager_;
-	std::unique_ptr<TransferManager> transferManager_;
+	struct Impl;
+	std::unique_ptr<Impl> impl_;
 };
 
 }
