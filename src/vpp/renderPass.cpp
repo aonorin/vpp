@@ -1,11 +1,14 @@
+// Copyright (c) 2017 nyorain
+// Distributed under the Boost Software License, Version 1.0.
+// See accompanying file LICENSE or copy at http://www.boost.org/LICENSE_1_0.txt
+
 #include <vpp/renderPass.hpp>
-#include <vpp/utility/range.hpp>
+#include <vpp/util/span.hpp>
 #include <vpp/vk.hpp>
 
-namespace vpp
-{
+namespace vpp {
 
-//RenderPass
+// RenderPass
 RenderPass::RenderPass(const Device& dev, const vk::RenderPassCreateInfo& info)
 	: RenderPass(dev, vk::createRenderPass(dev, info), info)
 {
@@ -19,17 +22,17 @@ RenderPass::RenderPass(const Device& dev, vk::RenderPass pass, const vk::RenderP
 		attachments_.push_back(info.pAttachments[i]);
 
 	subpasses_.reserve(info.subpassCount);
-	for(std::size_t i(0); i < info.subpassCount; ++i)
-	{
+	for(std::size_t i(0); i < info.subpassCount; ++i) {
 		auto& sub = info.pSubpasses[i];
 		subpasses_.push_back(sub);
 
 		if(sub.pDepthStencilAttachment) references_.push_back(*sub.pDepthStencilAttachment);
 
-		for(auto& ref : makeRange(*sub.pColorAttachments, sub.colorAttachmentCount))
+		using SpanAR = nytl::Span<const vk::AttachmentReference>;
+		for(auto& ref : SpanAR(*sub.pColorAttachments, sub.colorAttachmentCount))
 			references_.push_back(ref);
 
-		for(auto& ref : makeRange(*sub.pInputAttachments, sub.inputAttachmentCount))
+		for(auto& ref : SpanAR(*sub.pInputAttachments, sub.inputAttachmentCount))
 			references_.push_back(ref);
 	}
 
@@ -43,8 +46,8 @@ RenderPass::~RenderPass()
 	if(vkHandle()) vk::destroyRenderPass(vkDevice(), vkHandle());
 }
 
-//XXX: could make this RAII wrapper for render pass instances later on
-//RenderPassInstance
+// XXX: could make this RAII wrapper for render pass instances later on
+// RenderPassInstance
 RenderPassInstance::RenderPassInstance(vk::CommandBuffer cb, vk::RenderPass rp, vk::Framebuffer fb)
 	: renderPass_(rp), commandBuffer_(cb), framebuffer_(fb)
 {

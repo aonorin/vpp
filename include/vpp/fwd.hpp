@@ -1,12 +1,29 @@
+// Copyright (c) 2017 nyorain
+// Distributed under the Boost Software License, Version 1.0.
+// See accompanying file LICENSE or copy at http://www.boost.org/LICENSE_1_0.txt
+
 #pragma once
 
 #include <vpp/vulkan/fwd.hpp>
 #include <vpp/config.hpp>
 
-namespace vpp
-{
+#include <cstdint> // std::uint8_t
+#include <cstddef> // std::size_t
 
-using vk::Range;
+namespace vpp {
+
+// treat them as built-in
+using std::uint8_t;
+using std::uint16_t;
+using std::uint32_t;
+using std::uint64_t;
+
+using std::int8_t;
+using std::int16_t;
+using std::int32_t;
+using std::int64_t;
+
+using std::size_t;
 
 class Resource;
 class WorkBase;
@@ -14,15 +31,14 @@ class WorkBase;
 class Buffer;
 class Image;
 class Surface;
-class SwapChain;
-class ShaderStage;
+class Swapchain;
 class ShaderProgram;
+class ShaderModule;
 class DeviceMemory;
 class Pipeline;
 class DebugCallback;
 class DescriptorSet;
 class DescriptorPool;
-class VertexBufferLayout;
 class DescriptorSetLayout;
 class Framebuffer;
 class RenderPass;
@@ -30,18 +46,20 @@ class CommandPool;
 class CommandBuffer;
 class PipelineCache;
 class PipelineLayout;
+class Fence;
+class Semaphore;
+class Event;
 
-class Context;
+class Instance;
 class Device;
 class Queue;
 class RendererBuilder;
-class SwapChainRenderer;
+class SwapchainRenderer;
 class DeviceMemoryAllocator;
 class MemoryEntry;
 class ViewableImage;
 class RenderPassInstance;
-class GraphicsPipelineBuilder;
-class ComputePipelineBuilder;
+class CommandExecutionState;
 
 class CommandProvider;
 class DeviceMemoryProvider;
@@ -50,15 +68,8 @@ class SubmitManager;
 class WorkManager;
 class TransferManager;
 
+template<typename T>
+class ThreadStorage;
+struct DynamicStorageBase;
+
 }
-
-//see utility/memory_resource.hpp
-//ugly hack to not pull all boost headers from device.hpp
-//will be removed with c++17.
-namespace boost { namespace container { namespace pmr {
-	class memory_resource;
-}}}
-
-namespace std { namespace pmr {
-	using memory_resource = boost::container::pmr::memory_resource;
-}}

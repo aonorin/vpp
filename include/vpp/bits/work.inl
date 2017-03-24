@@ -1,10 +1,25 @@
+// Copyright (c) 2017 nyorain
+// Distributed under the Boost Software License, Version 1.0.
+// See accompanying file LICENSE or copy at http://www.boost.org/LICENSE_1_0.txt
+
 #pragma once
 
 template<typename R>
-CommandWork<R>::CommandWork(CommandBuffer&& cmdBuf, vk::Queue queue) : cmdBuffer_(std::move(cmdBuf))
+CommandWork<R>::CommandWork(CommandBuffer&& cmd, const vpp::Queue& queue)
+	: cmdBuffer_(std::move(cmd))
 {
-	cmdBuffer_.device().submitManager().add(queue, cmdBuffer_, &executionState_);
+	cmdBuffer_.device().submitManager().add(queue, {cmdBuffer_}, &executionState_);
 	state_ = WorkBase::State::pending;
+}
+
+template<typename R>
+CommandWork<R>::~CommandWork()
+{
+	try {
+		finish();
+	} catch(const std::exception& error) {
+		warn("vpp::~CommandWork: finish(): ", error.what());
+	}
 }
 
 template<typename R>
@@ -32,7 +47,7 @@ void CommandWork<R>::finish()
 	if(Work<R>::finished()) return;
 
 	wait();
-	cmdBuffer_ = {}; //free the commandBuffer it is no longer needed
+	cmdBuffer_ = {}; // free the commandBuffer it is no longer needed
 
 	state_ = WorkBase::State::finished;
 }
@@ -40,7 +55,7 @@ void CommandWork<R>::finish()
 template<typename R>
 WorkBase::State CommandWork<R>::state()
 {
-	//update state
+	// update state
 	if(state_ == WorkBase::State::pending && executionState_.submitted())
 		state_ = WorkBase::State::submitted;
 

@@ -1,13 +1,16 @@
+// Copyright (c) 2017 nyorain
+// Distributed under the Boost Software License, Version 1.0.
+// See accompanying file LICENSE or copy at http://www.boost.org/LICENSE_1_0.txt
+
 #include <vpp/framebuffer.hpp>
 #include <vpp/memory.hpp>
 #include <vpp/renderPass.hpp>
 #include <vpp/vk.hpp>
-#include <vpp/utility/range.hpp>
+#include <vpp/util/span.hpp>
 
-namespace vpp
-{
+namespace vpp {
 
-//Framebuffer
+// Framebuffer
 Framebuffer::Framebuffer(const Device& dev, vk::RenderPass rp, const vk::Extent2D& size,
 	const AttachmentsInfo& attachments, const ExtAttachments& ext)
 {
@@ -15,36 +18,40 @@ Framebuffer::Framebuffer(const Device& dev, vk::RenderPass rp, const vk::Extent2
 	init(rp, attachments, ext);
 }
 
+Framebuffer::Framebuffer(const Device& dev, const vk::Extent2D& size, vk::Framebuffer framebuffer)
+	: ResourceHandle(dev, framebuffer), width_(size.width), height_(size.height)
+{
+
+}
+
 Framebuffer::~Framebuffer()
 {
 	if(vkHandle()) vk::destroyFramebuffer(vkDevice(), vkHandle(), nullptr);
 }
 
-void Framebuffer::create(const Device& dev, const vk::Extent2D& size,
-	const AttachmentsInfo& attachments)
+void Framebuffer::swap(Framebuffer& lhs) noexcept
 {
-	std::vector<vk::ImageCreateInfo> info;
-	info.resize(attachments.size());
-	for(auto& at : attachments) info.push_back(at.imgInfo);
-
-	create(dev, size, info);
+	using std::swap;
+	swap(resourceBase(), lhs.resourceBase());
+	swap(attachments_, lhs.attachments_);
+	swap(width_, lhs.width_);
+	swap(height_, lhs.height_);
 }
 
 void Framebuffer::create(const Device& dev, const vk::Extent2D& size,
-	const std::vector<vk::ImageCreateInfo>& imgInfo)
+	const AttachmentsInfo& attachments)
 {
 	Resource::init(dev);
 	width_ = size.width;
 	height_ = size.height;
 
-	attachments_.reserve(imgInfo.size());
-	for(auto& attinfo : imgInfo)
-	{
-		auto imageInfo = attinfo;
-		imageInfo.extent = {size.width, size.height, 1};
+	attachments_.reserve(attachments.size());
+	for(auto& attinfo : attachments) {
+		auto imgInfo = attinfo.imgInfo;
+		imgInfo.extent = {size.width, size.height, 1};
 
 		attachments_.emplace_back();
-		attachments_.back().create(device(), imageInfo);
+		attachments_.back().create(device(), imgInfo, attinfo.memoryTypeBits);
 	}
 }
 
@@ -52,7 +59,7 @@ void Framebuffer::init(vk::RenderPass rp, const AttachmentsInfo& attachments,
 	const ExtAttachments& extAttachments)
 {
 	std::vector<vk::ImageViewCreateInfo> info;
-	info.resize(attachments.size());
+	info.reserve(attachments.size());
 	for(auto& at : attachments) info.push_back(at.viewInfo);
 
 	init(rp, info, extAttachments);
@@ -66,38 +73,36 @@ void Framebuffer::init(vk::RenderPass rp, const std::vector<vk::ImageViewCreateI
 
 	for(std::size_t i(0); i < attachments_.size(); ++i) attachments_[i].init(viewInfo[i]);
 
-	//framebuffer
-	//attachments
+	// framebuffer
+	// parse attachments
 	std::vector<vk::ImageView> attachments;
 	attachments.resize(attachments_.size() + extAttachments.size());
 
-	for(auto& extView : extAttachments)
-	{
+	for(auto& extView : extAttachments) {
 		if(extView.first > attachments.size())
-			throw std::logic_error("bpp::Framebuffer: invalid external Attachment id given");
+			throw std::logic_error("vpp::Framebuffer: invalid external Attachment id given");
 
 		attachments[extView.first] = extView.second;
 	}
 
 	std::size_t currentID = 0;
-	for(auto& buf : attachments_)
-	{
-		while(attachments[currentID]) ++currentID;
-
+	for(auto& buf : attachments_) {
+		while(attachments[currentID])
+			++currentID;
 		attachments[currentID] = buf.vkImageView();
 		++currentID;
 	}
 
-	//createinfo
+	// createinfo
 	vk::FramebufferCreateInfo createInfo;
 	createInfo.renderPass = rp;
 	createInfo.attachmentCount = attachments.size();
 	createInfo.pAttachments = attachments.data();
 	createInfo.width = width_;
 	createInfo.height = height_;
-	createInfo.layers = 1; ///XXX: should be paramterized?
+	createInfo.layers = 1; // TODO: should this be paramterized somehow?
 
-	vkHandle() = vk::createFramebuffer(vkDevice(), createInfo);
+	handle_ = vk::createFramebuffer(vkDevice(), createInfo);
 }
 
 vk::Extent2D Framebuffer::size() const
@@ -106,42 +111,37 @@ vk::Extent2D Framebuffer::size() const
 }
 
 //static utility
-Framebuffer::AttachmentsInfo Framebuffer::parseRenderPass(const RenderPass& rp, const vk::Extent2D& s)
+std::vector<ViewableImage::CreateInfo>
+Framebuffer::parseRenderPass(const RenderPass& rp, const vk::Extent2D& size)
 {
-	AttachmentsInfo ret;
+	std::vector<ViewableImage::CreateInfo> ret;
 	ret.reserve(rp.attachments().size());
 
-	for(std::size_t i(0); i < rp.attachments().size(); ++i)
-	{
+	for(std::size_t i(0); i < rp.attachments().size(); ++i) {
 		ViewableImage::CreateInfo fbaInfo;
 		fbaInfo.imgInfo.format = rp.attachments()[i].format;
-		fbaInfo.imgInfo.extent = {s.width, s.height, 1};
+		fbaInfo.imgInfo.extent = {size.width, size.height, 1};
 		fbaInfo.imgInfo.format = rp.attachments()[i].format;
 
 		vk::ImageUsageFlags usage {};
 		vk::ImageAspectFlags aspect {};
 
-		for(auto& sub : rp.subpasses())
-		{
-			if(sub.pDepthStencilAttachment && sub.pDepthStencilAttachment->attachment == i)
-			{
+		for(auto& sub : rp.subpasses()) {
+			if(sub.pDepthStencilAttachment && sub.pDepthStencilAttachment->attachment == i) {
 				usage |= vk::ImageUsageBits::depthStencilAttachment;
 				aspect |= vk::ImageAspectBits::depth | vk::ImageAspectBits::stencil;
 			}
 
-			for(auto& ref : makeRange(sub.pInputAttachments, sub.inputAttachmentCount))
-			{
-				if(ref.attachment == i)
-				{
+			using SpanAR = nytl::Span<const vk::AttachmentReference>;
+			for(auto& ref : SpanAR(*sub.pInputAttachments, sub.inputAttachmentCount)) {
+				if(ref.attachment == i) {
 					usage |= vk::ImageUsageBits::inputAttachment;
 					aspect |= vk::ImageAspectBits::depth;
 				}
 			}
 
-			for(auto& ref : makeRange(sub.pColorAttachments, sub.colorAttachmentCount))
-			{
-				if(ref.attachment == i)
-				{
+			for(auto& ref : SpanAR(*sub.pColorAttachments, sub.colorAttachmentCount)) {
+				if(ref.attachment == i) {
 					usage |= vk::ImageUsageBits::colorAttachment;
 					aspect |= vk::ImageAspectBits::color;
 				}
@@ -157,4 +157,4 @@ Framebuffer::AttachmentsInfo Framebuffer::parseRenderPass(const RenderPass& rp, 
 	return ret;
 }
 
-}
+} // namespace vpp

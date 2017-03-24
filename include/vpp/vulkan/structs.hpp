@@ -1,59 +1,7 @@
-// Copyright © 2016 nyorain
-//
-// Permission is hereby granted, free of charge, to any person
-// obtaining a copy of this software and associated documentation
-// files (the “Software”), to deal in the Software without
-// restriction, including without limitation the rights to use,
-// copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the
-// Software is furnished to do so, subject to the following
-// conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-// HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-// OTHER DEALINGS IN THE SOFTWARE.
+// Copyright (c) 2017 nyorain
+// Distributed under the Boost Software License, Version 1.0.
+// See accompanying file LICENSE or copy at http://www.boost.org/LICENSE_1_0.txt
 
-// The specification (vk.xml) itself is protected by the following license:
-
-// Copyright (c) 2015-2016 The Khronos Group Inc.
-// 
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and/or associated documentation files (the
-// "Materials"), to deal in the Materials without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Materials, and to
-// permit persons to whom the Materials are furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Materials.
-// 
-// THE MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-// CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-// MATERIALS OR THE USE OR OTHER DEALINGS IN THE MATERIALS.
-// 
-// ------------------------------------------------------------------------
-// 
-// This file, vk.xml, is the Vulkan API Registry. It is a critically important
-// and normative part of the Vulkan Specification, including a canonical
-// machine-readable definition of the API, parameter and member validation
-// language incorporated into the Specification and reference pages, and other
-// material which is registered by Khronos, such as tags used by extension and
-// layer authors. The only authoritative version of vk.xml is the one
-// maintained in the master branch of the Khronos Vulkan Github project.
-    
 // Automaitcally generated vulkan header file for the nyorain/vpp library.
 // Do not edit manually, rather edit the codegen files.
 
@@ -65,11 +13,11 @@
 #include <array>
 #include <vulkan/vulkan.h>
 
-namespace vk
-{
+static_assert(VK_HEADER_VERSION >=  20, "Newer vulkan header required");
 
-struct ApplicationInfo
-{
+namespace vk {
+
+struct ApplicationInfo {
 	StructureType sType {StructureType::applicationInfo};
 	const void* pNext {};
 	const char* pApplicationName {};
@@ -86,18 +34,18 @@ struct ApplicationInfo
 	operator const VkApplicationInfo&() const { return vkHandle(); };
 	operator VkApplicationInfo&() { return vkHandle(); };
 };
-struct InstanceCreateInfo
-{
+
+struct InstanceCreateInfo {
 	StructureType sType {StructureType::instanceCreateInfo};
 	const void* pNext {};
 	InstanceCreateFlags flags {};
 	const ApplicationInfo* pApplicationInfo {};
 	uint32_t enabledLayerCount {};
-	const char** ppEnabledLayerNames {};
+	const char* const* ppEnabledLayerNames {};
 	uint32_t enabledExtensionCount {};
-	const char** ppEnabledExtensionNames {};
+	const char* const* ppEnabledExtensionNames {};
 
-	InstanceCreateInfo(InstanceCreateFlags xflags = {}, const ApplicationInfo* xpApplicationInfo = {}, uint32_t xenabledLayerCount = {}, const char** xppEnabledLayerNames = {}, uint32_t xenabledExtensionCount = {}, const char** xppEnabledExtensionNames = {}) : flags(xflags), pApplicationInfo(xpApplicationInfo), enabledLayerCount(xenabledLayerCount), ppEnabledLayerNames(xppEnabledLayerNames), enabledExtensionCount(xenabledExtensionCount), ppEnabledExtensionNames(xppEnabledExtensionNames) {}
+	InstanceCreateInfo(InstanceCreateFlags xflags = {}, const ApplicationInfo* xpApplicationInfo = {}, uint32_t xenabledLayerCount = {}, const char* const* xppEnabledLayerNames = {}, uint32_t xenabledExtensionCount = {}, const char* const* xppEnabledExtensionNames = {}) : flags(xflags), pApplicationInfo(xpApplicationInfo), enabledLayerCount(xenabledLayerCount), ppEnabledLayerNames(xppEnabledLayerNames), enabledExtensionCount(xenabledExtensionCount), ppEnabledExtensionNames(xppEnabledExtensionNames) {}
 
 	const VkInstanceCreateInfo& vkHandle() const { return reinterpret_cast<const VkInstanceCreateInfo&>(*this); }
 	VkInstanceCreateInfo& vkHandle() { return reinterpret_cast<VkInstanceCreateInfo&>(*this); }
@@ -105,8 +53,8 @@ struct InstanceCreateInfo
 	operator const VkInstanceCreateInfo&() const { return vkHandle(); };
 	operator VkInstanceCreateInfo&() { return vkHandle(); };
 };
-struct AllocationCallbacks
-{
+
+struct AllocationCallbacks {
 	void* pUserData {};
 	PfnAllocationFunction pfnAllocation {};
 	PfnReallocationFunction pfnReallocation {};
@@ -120,8 +68,8 @@ struct AllocationCallbacks
 	operator const VkAllocationCallbacks&() const { return vkHandle(); };
 	operator VkAllocationCallbacks&() { return vkHandle(); };
 };
-struct PhysicalDeviceFeatures
-{
+
+struct PhysicalDeviceFeatures {
 	Bool32 robustBufferAccess {};
 	Bool32 fullDrawIndexUint32 {};
 	Bool32 imageCubeArray {};
@@ -184,8 +132,8 @@ struct PhysicalDeviceFeatures
 	operator const VkPhysicalDeviceFeatures&() const { return vkHandle(); };
 	operator VkPhysicalDeviceFeatures&() { return vkHandle(); };
 };
-struct FormatProperties
-{
+
+struct FormatProperties {
 	FormatFeatureFlags linearTilingFeatures {};
 	FormatFeatureFlags optimalTilingFeatures {};
 	FormatFeatureFlags bufferFeatures {};
@@ -196,8 +144,8 @@ struct FormatProperties
 	operator const VkFormatProperties&() const { return vkHandle(); };
 	operator VkFormatProperties&() { return vkHandle(); };
 };
-struct Extent3D
-{
+
+struct Extent3D {
 	uint32_t width {};
 	uint32_t height {};
 	uint32_t depth {};
@@ -208,8 +156,8 @@ struct Extent3D
 	operator const VkExtent3D&() const { return vkHandle(); };
 	operator VkExtent3D&() { return vkHandle(); };
 };
-struct ImageFormatProperties
-{
+
+struct ImageFormatProperties {
 	Extent3D maxExtent {};
 	uint32_t maxMipLevels {};
 	uint32_t maxArrayLayers {};
@@ -222,8 +170,8 @@ struct ImageFormatProperties
 	operator const VkImageFormatProperties&() const { return vkHandle(); };
 	operator VkImageFormatProperties&() { return vkHandle(); };
 };
-struct PhysicalDeviceLimits
-{
+
+struct PhysicalDeviceLimits {
 	uint32_t maxImageDimension1D {};
 	uint32_t maxImageDimension2D {};
 	uint32_t maxImageDimension3D {};
@@ -337,8 +285,8 @@ struct PhysicalDeviceLimits
 	operator const VkPhysicalDeviceLimits&() const { return vkHandle(); };
 	operator VkPhysicalDeviceLimits&() { return vkHandle(); };
 };
-struct PhysicalDeviceSparseProperties
-{
+
+struct PhysicalDeviceSparseProperties {
 	Bool32 residencyStandard2DBlockShape {};
 	Bool32 residencyStandard2DMultisampleBlockShape {};
 	Bool32 residencyStandard3DBlockShape {};
@@ -351,8 +299,8 @@ struct PhysicalDeviceSparseProperties
 	operator const VkPhysicalDeviceSparseProperties&() const { return vkHandle(); };
 	operator VkPhysicalDeviceSparseProperties&() { return vkHandle(); };
 };
-struct PhysicalDeviceProperties
-{
+
+struct PhysicalDeviceProperties {
 	uint32_t apiVersion {};
 	uint32_t driverVersion {};
 	uint32_t vendorID {};
@@ -369,8 +317,8 @@ struct PhysicalDeviceProperties
 	operator const VkPhysicalDeviceProperties&() const { return vkHandle(); };
 	operator VkPhysicalDeviceProperties&() { return vkHandle(); };
 };
-struct QueueFamilyProperties
-{
+
+struct QueueFamilyProperties {
 	QueueFlags queueFlags {};
 	uint32_t queueCount {};
 	uint32_t timestampValidBits {};
@@ -382,8 +330,8 @@ struct QueueFamilyProperties
 	operator const VkQueueFamilyProperties&() const { return vkHandle(); };
 	operator VkQueueFamilyProperties&() { return vkHandle(); };
 };
-struct MemoryType
-{
+
+struct MemoryType {
 	MemoryPropertyFlags propertyFlags {};
 	uint32_t heapIndex {};
 
@@ -393,8 +341,8 @@ struct MemoryType
 	operator const VkMemoryType&() const { return vkHandle(); };
 	operator VkMemoryType&() { return vkHandle(); };
 };
-struct MemoryHeap
-{
+
+struct MemoryHeap {
 	DeviceSize size {};
 	MemoryHeapFlags flags {};
 
@@ -404,8 +352,8 @@ struct MemoryHeap
 	operator const VkMemoryHeap&() const { return vkHandle(); };
 	operator VkMemoryHeap&() { return vkHandle(); };
 };
-struct PhysicalDeviceMemoryProperties
-{
+
+struct PhysicalDeviceMemoryProperties {
 	uint32_t memoryTypeCount {};
 	std::array<MemoryType, maxMemoryTypes> memoryTypes {};
 	uint32_t memoryHeapCount {};
@@ -417,8 +365,8 @@ struct PhysicalDeviceMemoryProperties
 	operator const VkPhysicalDeviceMemoryProperties&() const { return vkHandle(); };
 	operator VkPhysicalDeviceMemoryProperties&() { return vkHandle(); };
 };
-struct DeviceQueueCreateInfo
-{
+
+struct DeviceQueueCreateInfo {
 	StructureType sType {StructureType::deviceQueueCreateInfo};
 	const void* pNext {};
 	DeviceQueueCreateFlags flags {};
@@ -434,20 +382,20 @@ struct DeviceQueueCreateInfo
 	operator const VkDeviceQueueCreateInfo&() const { return vkHandle(); };
 	operator VkDeviceQueueCreateInfo&() { return vkHandle(); };
 };
-struct DeviceCreateInfo
-{
+
+struct DeviceCreateInfo {
 	StructureType sType {StructureType::deviceCreateInfo};
 	const void* pNext {};
 	DeviceCreateFlags flags {};
 	uint32_t queueCreateInfoCount {};
 	const DeviceQueueCreateInfo* pQueueCreateInfos {};
 	uint32_t enabledLayerCount {};
-	const char** ppEnabledLayerNames {};
+	const char* const* ppEnabledLayerNames {};
 	uint32_t enabledExtensionCount {};
-	const char** ppEnabledExtensionNames {};
+	const char* const* ppEnabledExtensionNames {};
 	const PhysicalDeviceFeatures* pEnabledFeatures {};
 
-	DeviceCreateInfo(DeviceCreateFlags xflags = {}, uint32_t xqueueCreateInfoCount = {}, const DeviceQueueCreateInfo* xpQueueCreateInfos = {}, uint32_t xenabledLayerCount = {}, const char** xppEnabledLayerNames = {}, uint32_t xenabledExtensionCount = {}, const char** xppEnabledExtensionNames = {}, const PhysicalDeviceFeatures* xpEnabledFeatures = {}) : flags(xflags), queueCreateInfoCount(xqueueCreateInfoCount), pQueueCreateInfos(xpQueueCreateInfos), enabledLayerCount(xenabledLayerCount), ppEnabledLayerNames(xppEnabledLayerNames), enabledExtensionCount(xenabledExtensionCount), ppEnabledExtensionNames(xppEnabledExtensionNames), pEnabledFeatures(xpEnabledFeatures) {}
+	DeviceCreateInfo(DeviceCreateFlags xflags = {}, uint32_t xqueueCreateInfoCount = {}, const DeviceQueueCreateInfo* xpQueueCreateInfos = {}, uint32_t xenabledLayerCount = {}, const char* const* xppEnabledLayerNames = {}, uint32_t xenabledExtensionCount = {}, const char* const* xppEnabledExtensionNames = {}, const PhysicalDeviceFeatures* xpEnabledFeatures = {}) : flags(xflags), queueCreateInfoCount(xqueueCreateInfoCount), pQueueCreateInfos(xpQueueCreateInfos), enabledLayerCount(xenabledLayerCount), ppEnabledLayerNames(xppEnabledLayerNames), enabledExtensionCount(xenabledExtensionCount), ppEnabledExtensionNames(xppEnabledExtensionNames), pEnabledFeatures(xpEnabledFeatures) {}
 
 	const VkDeviceCreateInfo& vkHandle() const { return reinterpret_cast<const VkDeviceCreateInfo&>(*this); }
 	VkDeviceCreateInfo& vkHandle() { return reinterpret_cast<VkDeviceCreateInfo&>(*this); }
@@ -455,8 +403,8 @@ struct DeviceCreateInfo
 	operator const VkDeviceCreateInfo&() const { return vkHandle(); };
 	operator VkDeviceCreateInfo&() { return vkHandle(); };
 };
-struct ExtensionProperties
-{
+
+struct ExtensionProperties {
 	std::array<char, maxExtensionNameSize> extensionName {};
 	uint32_t specVersion {};
 
@@ -466,8 +414,8 @@ struct ExtensionProperties
 	operator const VkExtensionProperties&() const { return vkHandle(); };
 	operator VkExtensionProperties&() { return vkHandle(); };
 };
-struct LayerProperties
-{
+
+struct LayerProperties {
 	std::array<char, maxExtensionNameSize> layerName {};
 	uint32_t specVersion {};
 	uint32_t implementationVersion {};
@@ -479,8 +427,8 @@ struct LayerProperties
 	operator const VkLayerProperties&() const { return vkHandle(); };
 	operator VkLayerProperties&() { return vkHandle(); };
 };
-struct SubmitInfo
-{
+
+struct SubmitInfo {
 	StructureType sType {StructureType::submitInfo};
 	const void* pNext {};
 	uint32_t waitSemaphoreCount {};
@@ -499,8 +447,8 @@ struct SubmitInfo
 	operator const VkSubmitInfo&() const { return vkHandle(); };
 	operator VkSubmitInfo&() { return vkHandle(); };
 };
-struct MemoryAllocateInfo
-{
+
+struct MemoryAllocateInfo {
 	StructureType sType {StructureType::memoryAllocateInfo};
 	const void* pNext {};
 	DeviceSize allocationSize {};
@@ -514,8 +462,8 @@ struct MemoryAllocateInfo
 	operator const VkMemoryAllocateInfo&() const { return vkHandle(); };
 	operator VkMemoryAllocateInfo&() { return vkHandle(); };
 };
-struct MappedMemoryRange
-{
+
+struct MappedMemoryRange {
 	StructureType sType {StructureType::mappedMemoryRange};
 	const void* pNext {};
 	DeviceMemory memory {};
@@ -530,8 +478,8 @@ struct MappedMemoryRange
 	operator const VkMappedMemoryRange&() const { return vkHandle(); };
 	operator VkMappedMemoryRange&() { return vkHandle(); };
 };
-struct MemoryRequirements
-{
+
+struct MemoryRequirements {
 	DeviceSize size {};
 	DeviceSize alignment {};
 	uint32_t memoryTypeBits {};
@@ -542,8 +490,8 @@ struct MemoryRequirements
 	operator const VkMemoryRequirements&() const { return vkHandle(); };
 	operator VkMemoryRequirements&() { return vkHandle(); };
 };
-struct SparseImageFormatProperties
-{
+
+struct SparseImageFormatProperties {
 	ImageAspectFlags aspectMask {};
 	Extent3D imageGranularity {};
 	SparseImageFormatFlags flags {};
@@ -554,8 +502,8 @@ struct SparseImageFormatProperties
 	operator const VkSparseImageFormatProperties&() const { return vkHandle(); };
 	operator VkSparseImageFormatProperties&() { return vkHandle(); };
 };
-struct SparseImageMemoryRequirements
-{
+
+struct SparseImageMemoryRequirements {
 	SparseImageFormatProperties formatProperties {};
 	uint32_t imageMipTailFirstLod {};
 	DeviceSize imageMipTailSize {};
@@ -568,8 +516,8 @@ struct SparseImageMemoryRequirements
 	operator const VkSparseImageMemoryRequirements&() const { return vkHandle(); };
 	operator VkSparseImageMemoryRequirements&() { return vkHandle(); };
 };
-struct SparseMemoryBind
-{
+
+struct SparseMemoryBind {
 	DeviceSize resourceOffset {};
 	DeviceSize size {};
 	DeviceMemory memory {};
@@ -582,8 +530,8 @@ struct SparseMemoryBind
 	operator const VkSparseMemoryBind&() const { return vkHandle(); };
 	operator VkSparseMemoryBind&() { return vkHandle(); };
 };
-struct SparseBufferMemoryBindInfo
-{
+
+struct SparseBufferMemoryBindInfo {
 	Buffer buffer {};
 	uint32_t bindCount {};
 	const SparseMemoryBind* pBinds {};
@@ -594,8 +542,8 @@ struct SparseBufferMemoryBindInfo
 	operator const VkSparseBufferMemoryBindInfo&() const { return vkHandle(); };
 	operator VkSparseBufferMemoryBindInfo&() { return vkHandle(); };
 };
-struct SparseImageOpaqueMemoryBindInfo
-{
+
+struct SparseImageOpaqueMemoryBindInfo {
 	Image image {};
 	uint32_t bindCount {};
 	const SparseMemoryBind* pBinds {};
@@ -606,8 +554,8 @@ struct SparseImageOpaqueMemoryBindInfo
 	operator const VkSparseImageOpaqueMemoryBindInfo&() const { return vkHandle(); };
 	operator VkSparseImageOpaqueMemoryBindInfo&() { return vkHandle(); };
 };
-struct ImageSubresource
-{
+
+struct ImageSubresource {
 	ImageAspectFlags aspectMask {};
 	uint32_t mipLevel {};
 	uint32_t arrayLayer {};
@@ -618,8 +566,8 @@ struct ImageSubresource
 	operator const VkImageSubresource&() const { return vkHandle(); };
 	operator VkImageSubresource&() { return vkHandle(); };
 };
-struct Offset3D
-{
+
+struct Offset3D {
 	int32_t x {};
 	int32_t y {};
 	int32_t z {};
@@ -630,8 +578,8 @@ struct Offset3D
 	operator const VkOffset3D&() const { return vkHandle(); };
 	operator VkOffset3D&() { return vkHandle(); };
 };
-struct SparseImageMemoryBind
-{
+
+struct SparseImageMemoryBind {
 	ImageSubresource subresource {};
 	Offset3D offset {};
 	Extent3D extent {};
@@ -645,8 +593,8 @@ struct SparseImageMemoryBind
 	operator const VkSparseImageMemoryBind&() const { return vkHandle(); };
 	operator VkSparseImageMemoryBind&() { return vkHandle(); };
 };
-struct SparseImageMemoryBindInfo
-{
+
+struct SparseImageMemoryBindInfo {
 	Image image {};
 	uint32_t bindCount {};
 	const SparseImageMemoryBind* pBinds {};
@@ -657,8 +605,8 @@ struct SparseImageMemoryBindInfo
 	operator const VkSparseImageMemoryBindInfo&() const { return vkHandle(); };
 	operator VkSparseImageMemoryBindInfo&() { return vkHandle(); };
 };
-struct BindSparseInfo
-{
+
+struct BindSparseInfo {
 	StructureType sType {StructureType::bindSparseInfo};
 	const void* pNext {};
 	uint32_t waitSemaphoreCount {};
@@ -680,8 +628,8 @@ struct BindSparseInfo
 	operator const VkBindSparseInfo&() const { return vkHandle(); };
 	operator VkBindSparseInfo&() { return vkHandle(); };
 };
-struct FenceCreateInfo
-{
+
+struct FenceCreateInfo {
 	StructureType sType {StructureType::fenceCreateInfo};
 	const void* pNext {};
 	FenceCreateFlags flags {};
@@ -694,8 +642,8 @@ struct FenceCreateInfo
 	operator const VkFenceCreateInfo&() const { return vkHandle(); };
 	operator VkFenceCreateInfo&() { return vkHandle(); };
 };
-struct SemaphoreCreateInfo
-{
+
+struct SemaphoreCreateInfo {
 	StructureType sType {StructureType::semaphoreCreateInfo};
 	const void* pNext {};
 	SemaphoreCreateFlags flags {};
@@ -708,8 +656,8 @@ struct SemaphoreCreateInfo
 	operator const VkSemaphoreCreateInfo&() const { return vkHandle(); };
 	operator VkSemaphoreCreateInfo&() { return vkHandle(); };
 };
-struct EventCreateInfo
-{
+
+struct EventCreateInfo {
 	StructureType sType {StructureType::eventCreateInfo};
 	const void* pNext {};
 	EventCreateFlags flags {};
@@ -722,8 +670,8 @@ struct EventCreateInfo
 	operator const VkEventCreateInfo&() const { return vkHandle(); };
 	operator VkEventCreateInfo&() { return vkHandle(); };
 };
-struct QueryPoolCreateInfo
-{
+
+struct QueryPoolCreateInfo {
 	StructureType sType {StructureType::queryPoolCreateInfo};
 	const void* pNext {};
 	QueryPoolCreateFlags flags {};
@@ -739,8 +687,8 @@ struct QueryPoolCreateInfo
 	operator const VkQueryPoolCreateInfo&() const { return vkHandle(); };
 	operator VkQueryPoolCreateInfo&() { return vkHandle(); };
 };
-struct BufferCreateInfo
-{
+
+struct BufferCreateInfo {
 	StructureType sType {StructureType::bufferCreateInfo};
 	const void* pNext {};
 	BufferCreateFlags flags {};
@@ -758,8 +706,8 @@ struct BufferCreateInfo
 	operator const VkBufferCreateInfo&() const { return vkHandle(); };
 	operator VkBufferCreateInfo&() { return vkHandle(); };
 };
-struct BufferViewCreateInfo
-{
+
+struct BufferViewCreateInfo {
 	StructureType sType {StructureType::bufferViewCreateInfo};
 	const void* pNext {};
 	BufferViewCreateFlags flags {};
@@ -776,8 +724,8 @@ struct BufferViewCreateInfo
 	operator const VkBufferViewCreateInfo&() const { return vkHandle(); };
 	operator VkBufferViewCreateInfo&() { return vkHandle(); };
 };
-struct ImageCreateInfo
-{
+
+struct ImageCreateInfo {
 	StructureType sType {StructureType::imageCreateInfo};
 	const void* pNext {};
 	ImageCreateFlags flags {};
@@ -802,8 +750,8 @@ struct ImageCreateInfo
 	operator const VkImageCreateInfo&() const { return vkHandle(); };
 	operator VkImageCreateInfo&() { return vkHandle(); };
 };
-struct SubresourceLayout
-{
+
+struct SubresourceLayout {
 	DeviceSize offset {};
 	DeviceSize size {};
 	DeviceSize rowPitch {};
@@ -816,8 +764,8 @@ struct SubresourceLayout
 	operator const VkSubresourceLayout&() const { return vkHandle(); };
 	operator VkSubresourceLayout&() { return vkHandle(); };
 };
-struct ComponentMapping
-{
+
+struct ComponentMapping {
 	ComponentSwizzle r {};
 	ComponentSwizzle g {};
 	ComponentSwizzle b {};
@@ -829,8 +777,8 @@ struct ComponentMapping
 	operator const VkComponentMapping&() const { return vkHandle(); };
 	operator VkComponentMapping&() { return vkHandle(); };
 };
-struct ImageSubresourceRange
-{
+
+struct ImageSubresourceRange {
 	ImageAspectFlags aspectMask {};
 	uint32_t baseMipLevel {};
 	uint32_t levelCount {};
@@ -843,8 +791,8 @@ struct ImageSubresourceRange
 	operator const VkImageSubresourceRange&() const { return vkHandle(); };
 	operator VkImageSubresourceRange&() { return vkHandle(); };
 };
-struct ImageViewCreateInfo
-{
+
+struct ImageViewCreateInfo {
 	StructureType sType {StructureType::imageViewCreateInfo};
 	const void* pNext {};
 	ImageViewCreateFlags flags {};
@@ -862,8 +810,8 @@ struct ImageViewCreateInfo
 	operator const VkImageViewCreateInfo&() const { return vkHandle(); };
 	operator VkImageViewCreateInfo&() { return vkHandle(); };
 };
-struct ShaderModuleCreateInfo
-{
+
+struct ShaderModuleCreateInfo {
 	StructureType sType {StructureType::shaderModuleCreateInfo};
 	const void* pNext {};
 	ShaderModuleCreateFlags flags {};
@@ -878,8 +826,8 @@ struct ShaderModuleCreateInfo
 	operator const VkShaderModuleCreateInfo&() const { return vkHandle(); };
 	operator VkShaderModuleCreateInfo&() { return vkHandle(); };
 };
-struct PipelineCacheCreateInfo
-{
+
+struct PipelineCacheCreateInfo {
 	StructureType sType {StructureType::pipelineCacheCreateInfo};
 	const void* pNext {};
 	PipelineCacheCreateFlags flags {};
@@ -894,8 +842,8 @@ struct PipelineCacheCreateInfo
 	operator const VkPipelineCacheCreateInfo&() const { return vkHandle(); };
 	operator VkPipelineCacheCreateInfo&() { return vkHandle(); };
 };
-struct SpecializationMapEntry
-{
+
+struct SpecializationMapEntry {
 	uint32_t constantID {};
 	uint32_t offset {};
 	size_t size {};
@@ -906,8 +854,8 @@ struct SpecializationMapEntry
 	operator const VkSpecializationMapEntry&() const { return vkHandle(); };
 	operator VkSpecializationMapEntry&() { return vkHandle(); };
 };
-struct SpecializationInfo
-{
+
+struct SpecializationInfo {
 	uint32_t mapEntryCount {};
 	const SpecializationMapEntry* pMapEntries {};
 	size_t dataSize {};
@@ -919,8 +867,8 @@ struct SpecializationInfo
 	operator const VkSpecializationInfo&() const { return vkHandle(); };
 	operator VkSpecializationInfo&() { return vkHandle(); };
 };
-struct PipelineShaderStageCreateInfo
-{
+
+struct PipelineShaderStageCreateInfo {
 	StructureType sType {StructureType::pipelineShaderStageCreateInfo};
 	const void* pNext {};
 	PipelineShaderStageCreateFlags flags {};
@@ -937,8 +885,8 @@ struct PipelineShaderStageCreateInfo
 	operator const VkPipelineShaderStageCreateInfo&() const { return vkHandle(); };
 	operator VkPipelineShaderStageCreateInfo&() { return vkHandle(); };
 };
-struct VertexInputBindingDescription
-{
+
+struct VertexInputBindingDescription {
 	uint32_t binding {};
 	uint32_t stride {};
 	VertexInputRate inputRate {};
@@ -949,8 +897,8 @@ struct VertexInputBindingDescription
 	operator const VkVertexInputBindingDescription&() const { return vkHandle(); };
 	operator VkVertexInputBindingDescription&() { return vkHandle(); };
 };
-struct VertexInputAttributeDescription
-{
+
+struct VertexInputAttributeDescription {
 	uint32_t location {};
 	uint32_t binding {};
 	Format format {};
@@ -962,8 +910,8 @@ struct VertexInputAttributeDescription
 	operator const VkVertexInputAttributeDescription&() const { return vkHandle(); };
 	operator VkVertexInputAttributeDescription&() { return vkHandle(); };
 };
-struct PipelineVertexInputStateCreateInfo
-{
+
+struct PipelineVertexInputStateCreateInfo {
 	StructureType sType {StructureType::pipelineVertexInputStateCreateInfo};
 	const void* pNext {};
 	PipelineVertexInputStateCreateFlags flags {};
@@ -980,8 +928,8 @@ struct PipelineVertexInputStateCreateInfo
 	operator const VkPipelineVertexInputStateCreateInfo&() const { return vkHandle(); };
 	operator VkPipelineVertexInputStateCreateInfo&() { return vkHandle(); };
 };
-struct PipelineInputAssemblyStateCreateInfo
-{
+
+struct PipelineInputAssemblyStateCreateInfo {
 	StructureType sType {StructureType::pipelineInputAssemblyStateCreateInfo};
 	const void* pNext {};
 	PipelineInputAssemblyStateCreateFlags flags {};
@@ -996,8 +944,8 @@ struct PipelineInputAssemblyStateCreateInfo
 	operator const VkPipelineInputAssemblyStateCreateInfo&() const { return vkHandle(); };
 	operator VkPipelineInputAssemblyStateCreateInfo&() { return vkHandle(); };
 };
-struct PipelineTessellationStateCreateInfo
-{
+
+struct PipelineTessellationStateCreateInfo {
 	StructureType sType {StructureType::pipelineTessellationStateCreateInfo};
 	const void* pNext {};
 	PipelineTessellationStateCreateFlags flags {};
@@ -1011,8 +959,8 @@ struct PipelineTessellationStateCreateInfo
 	operator const VkPipelineTessellationStateCreateInfo&() const { return vkHandle(); };
 	operator VkPipelineTessellationStateCreateInfo&() { return vkHandle(); };
 };
-struct Viewport
-{
+
+struct Viewport {
 	float x {};
 	float y {};
 	float width {};
@@ -1026,8 +974,8 @@ struct Viewport
 	operator const VkViewport&() const { return vkHandle(); };
 	operator VkViewport&() { return vkHandle(); };
 };
-struct Offset2D
-{
+
+struct Offset2D {
 	int32_t x {};
 	int32_t y {};
 
@@ -1037,8 +985,8 @@ struct Offset2D
 	operator const VkOffset2D&() const { return vkHandle(); };
 	operator VkOffset2D&() { return vkHandle(); };
 };
-struct Extent2D
-{
+
+struct Extent2D {
 	uint32_t width {};
 	uint32_t height {};
 
@@ -1048,8 +996,8 @@ struct Extent2D
 	operator const VkExtent2D&() const { return vkHandle(); };
 	operator VkExtent2D&() { return vkHandle(); };
 };
-struct Rect2D
-{
+
+struct Rect2D {
 	Offset2D offset {};
 	Extent2D extent {};
 
@@ -1059,8 +1007,8 @@ struct Rect2D
 	operator const VkRect2D&() const { return vkHandle(); };
 	operator VkRect2D&() { return vkHandle(); };
 };
-struct PipelineViewportStateCreateInfo
-{
+
+struct PipelineViewportStateCreateInfo {
 	StructureType sType {StructureType::pipelineViewportStateCreateInfo};
 	const void* pNext {};
 	PipelineViewportStateCreateFlags flags {};
@@ -1077,8 +1025,8 @@ struct PipelineViewportStateCreateInfo
 	operator const VkPipelineViewportStateCreateInfo&() const { return vkHandle(); };
 	operator VkPipelineViewportStateCreateInfo&() { return vkHandle(); };
 };
-struct PipelineRasterizationStateCreateInfo
-{
+
+struct PipelineRasterizationStateCreateInfo {
 	StructureType sType {StructureType::pipelineRasterizationStateCreateInfo};
 	const void* pNext {};
 	PipelineRasterizationStateCreateFlags flags {};
@@ -1101,8 +1049,8 @@ struct PipelineRasterizationStateCreateInfo
 	operator const VkPipelineRasterizationStateCreateInfo&() const { return vkHandle(); };
 	operator VkPipelineRasterizationStateCreateInfo&() { return vkHandle(); };
 };
-struct PipelineMultisampleStateCreateInfo
-{
+
+struct PipelineMultisampleStateCreateInfo {
 	StructureType sType {StructureType::pipelineMultisampleStateCreateInfo};
 	const void* pNext {};
 	PipelineMultisampleStateCreateFlags flags {};
@@ -1121,8 +1069,8 @@ struct PipelineMultisampleStateCreateInfo
 	operator const VkPipelineMultisampleStateCreateInfo&() const { return vkHandle(); };
 	operator VkPipelineMultisampleStateCreateInfo&() { return vkHandle(); };
 };
-struct StencilOpState
-{
+
+struct StencilOpState {
 	StencilOp failOp {};
 	StencilOp passOp {};
 	StencilOp depthFailOp {};
@@ -1137,8 +1085,8 @@ struct StencilOpState
 	operator const VkStencilOpState&() const { return vkHandle(); };
 	operator VkStencilOpState&() { return vkHandle(); };
 };
-struct PipelineDepthStencilStateCreateInfo
-{
+
+struct PipelineDepthStencilStateCreateInfo {
 	StructureType sType {StructureType::pipelineDepthStencilStateCreateInfo};
 	const void* pNext {};
 	PipelineDepthStencilStateCreateFlags flags {};
@@ -1160,8 +1108,8 @@ struct PipelineDepthStencilStateCreateInfo
 	operator const VkPipelineDepthStencilStateCreateInfo&() const { return vkHandle(); };
 	operator VkPipelineDepthStencilStateCreateInfo&() { return vkHandle(); };
 };
-struct PipelineColorBlendAttachmentState
-{
+
+struct PipelineColorBlendAttachmentState {
 	Bool32 blendEnable {};
 	BlendFactor srcColorBlendFactor {};
 	BlendFactor dstColorBlendFactor {};
@@ -1177,8 +1125,8 @@ struct PipelineColorBlendAttachmentState
 	operator const VkPipelineColorBlendAttachmentState&() const { return vkHandle(); };
 	operator VkPipelineColorBlendAttachmentState&() { return vkHandle(); };
 };
-struct PipelineColorBlendStateCreateInfo
-{
+
+struct PipelineColorBlendStateCreateInfo {
 	StructureType sType {StructureType::pipelineColorBlendStateCreateInfo};
 	const void* pNext {};
 	PipelineColorBlendStateCreateFlags flags {};
@@ -1196,8 +1144,8 @@ struct PipelineColorBlendStateCreateInfo
 	operator const VkPipelineColorBlendStateCreateInfo&() const { return vkHandle(); };
 	operator VkPipelineColorBlendStateCreateInfo&() { return vkHandle(); };
 };
-struct PipelineDynamicStateCreateInfo
-{
+
+struct PipelineDynamicStateCreateInfo {
 	StructureType sType {StructureType::pipelineDynamicStateCreateInfo};
 	const void* pNext {};
 	PipelineDynamicStateCreateFlags flags {};
@@ -1212,8 +1160,8 @@ struct PipelineDynamicStateCreateInfo
 	operator const VkPipelineDynamicStateCreateInfo&() const { return vkHandle(); };
 	operator VkPipelineDynamicStateCreateInfo&() { return vkHandle(); };
 };
-struct GraphicsPipelineCreateInfo
-{
+
+struct GraphicsPipelineCreateInfo {
 	StructureType sType {StructureType::graphicsPipelineCreateInfo};
 	const void* pNext {};
 	PipelineCreateFlags flags {};
@@ -1242,8 +1190,8 @@ struct GraphicsPipelineCreateInfo
 	operator const VkGraphicsPipelineCreateInfo&() const { return vkHandle(); };
 	operator VkGraphicsPipelineCreateInfo&() { return vkHandle(); };
 };
-struct ComputePipelineCreateInfo
-{
+
+struct ComputePipelineCreateInfo {
 	StructureType sType {StructureType::computePipelineCreateInfo};
 	const void* pNext {};
 	PipelineCreateFlags flags {};
@@ -1260,8 +1208,8 @@ struct ComputePipelineCreateInfo
 	operator const VkComputePipelineCreateInfo&() const { return vkHandle(); };
 	operator VkComputePipelineCreateInfo&() { return vkHandle(); };
 };
-struct PushConstantRange
-{
+
+struct PushConstantRange {
 	ShaderStageFlags stageFlags {};
 	uint32_t offset {};
 	uint32_t size {};
@@ -1272,8 +1220,8 @@ struct PushConstantRange
 	operator const VkPushConstantRange&() const { return vkHandle(); };
 	operator VkPushConstantRange&() { return vkHandle(); };
 };
-struct PipelineLayoutCreateInfo
-{
+
+struct PipelineLayoutCreateInfo {
 	StructureType sType {StructureType::pipelineLayoutCreateInfo};
 	const void* pNext {};
 	PipelineLayoutCreateFlags flags {};
@@ -1290,8 +1238,8 @@ struct PipelineLayoutCreateInfo
 	operator const VkPipelineLayoutCreateInfo&() const { return vkHandle(); };
 	operator VkPipelineLayoutCreateInfo&() { return vkHandle(); };
 };
-struct SamplerCreateInfo
-{
+
+struct SamplerCreateInfo {
 	StructureType sType {StructureType::samplerCreateInfo};
 	const void* pNext {};
 	SamplerCreateFlags flags {};
@@ -1319,8 +1267,8 @@ struct SamplerCreateInfo
 	operator const VkSamplerCreateInfo&() const { return vkHandle(); };
 	operator VkSamplerCreateInfo&() { return vkHandle(); };
 };
-struct DescriptorSetLayoutBinding
-{
+
+struct DescriptorSetLayoutBinding {
 	uint32_t binding {};
 	DescriptorType descriptorType {};
 	uint32_t descriptorCount {};
@@ -1333,8 +1281,8 @@ struct DescriptorSetLayoutBinding
 	operator const VkDescriptorSetLayoutBinding&() const { return vkHandle(); };
 	operator VkDescriptorSetLayoutBinding&() { return vkHandle(); };
 };
-struct DescriptorSetLayoutCreateInfo
-{
+
+struct DescriptorSetLayoutCreateInfo {
 	StructureType sType {StructureType::descriptorSetLayoutCreateInfo};
 	const void* pNext {};
 	DescriptorSetLayoutCreateFlags flags {};
@@ -1349,8 +1297,8 @@ struct DescriptorSetLayoutCreateInfo
 	operator const VkDescriptorSetLayoutCreateInfo&() const { return vkHandle(); };
 	operator VkDescriptorSetLayoutCreateInfo&() { return vkHandle(); };
 };
-struct DescriptorPoolSize
-{
+
+struct DescriptorPoolSize {
 	DescriptorType type {};
 	uint32_t descriptorCount {};
 
@@ -1360,8 +1308,8 @@ struct DescriptorPoolSize
 	operator const VkDescriptorPoolSize&() const { return vkHandle(); };
 	operator VkDescriptorPoolSize&() { return vkHandle(); };
 };
-struct DescriptorPoolCreateInfo
-{
+
+struct DescriptorPoolCreateInfo {
 	StructureType sType {StructureType::descriptorPoolCreateInfo};
 	const void* pNext {};
 	DescriptorPoolCreateFlags flags {};
@@ -1377,8 +1325,8 @@ struct DescriptorPoolCreateInfo
 	operator const VkDescriptorPoolCreateInfo&() const { return vkHandle(); };
 	operator VkDescriptorPoolCreateInfo&() { return vkHandle(); };
 };
-struct DescriptorSetAllocateInfo
-{
+
+struct DescriptorSetAllocateInfo {
 	StructureType sType {StructureType::descriptorSetAllocateInfo};
 	const void* pNext {};
 	DescriptorPool descriptorPool {};
@@ -1393,8 +1341,8 @@ struct DescriptorSetAllocateInfo
 	operator const VkDescriptorSetAllocateInfo&() const { return vkHandle(); };
 	operator VkDescriptorSetAllocateInfo&() { return vkHandle(); };
 };
-struct DescriptorImageInfo
-{
+
+struct DescriptorImageInfo {
 	Sampler sampler {};
 	ImageView imageView {};
 	ImageLayout imageLayout {};
@@ -1405,8 +1353,8 @@ struct DescriptorImageInfo
 	operator const VkDescriptorImageInfo&() const { return vkHandle(); };
 	operator VkDescriptorImageInfo&() { return vkHandle(); };
 };
-struct DescriptorBufferInfo
-{
+
+struct DescriptorBufferInfo {
 	Buffer buffer {};
 	DeviceSize offset {};
 	DeviceSize range {};
@@ -1417,8 +1365,8 @@ struct DescriptorBufferInfo
 	operator const VkDescriptorBufferInfo&() const { return vkHandle(); };
 	operator VkDescriptorBufferInfo&() { return vkHandle(); };
 };
-struct WriteDescriptorSet
-{
+
+struct WriteDescriptorSet {
 	StructureType sType {StructureType::writeDescriptorSet};
 	const void* pNext {};
 	DescriptorSet dstSet {};
@@ -1438,8 +1386,8 @@ struct WriteDescriptorSet
 	operator const VkWriteDescriptorSet&() const { return vkHandle(); };
 	operator VkWriteDescriptorSet&() { return vkHandle(); };
 };
-struct CopyDescriptorSet
-{
+
+struct CopyDescriptorSet {
 	StructureType sType {StructureType::copyDescriptorSet};
 	const void* pNext {};
 	DescriptorSet srcSet {};
@@ -1458,8 +1406,8 @@ struct CopyDescriptorSet
 	operator const VkCopyDescriptorSet&() const { return vkHandle(); };
 	operator VkCopyDescriptorSet&() { return vkHandle(); };
 };
-struct FramebufferCreateInfo
-{
+
+struct FramebufferCreateInfo {
 	StructureType sType {StructureType::framebufferCreateInfo};
 	const void* pNext {};
 	FramebufferCreateFlags flags {};
@@ -1478,8 +1426,8 @@ struct FramebufferCreateInfo
 	operator const VkFramebufferCreateInfo&() const { return vkHandle(); };
 	operator VkFramebufferCreateInfo&() { return vkHandle(); };
 };
-struct AttachmentDescription
-{
+
+struct AttachmentDescription {
 	AttachmentDescriptionFlags flags {};
 	Format format {};
 	SampleCountBits samples {};
@@ -1496,8 +1444,8 @@ struct AttachmentDescription
 	operator const VkAttachmentDescription&() const { return vkHandle(); };
 	operator VkAttachmentDescription&() { return vkHandle(); };
 };
-struct AttachmentReference
-{
+
+struct AttachmentReference {
 	uint32_t attachment {};
 	ImageLayout layout {};
 
@@ -1507,8 +1455,8 @@ struct AttachmentReference
 	operator const VkAttachmentReference&() const { return vkHandle(); };
 	operator VkAttachmentReference&() { return vkHandle(); };
 };
-struct SubpassDescription
-{
+
+struct SubpassDescription {
 	SubpassDescriptionFlags flags {};
 	PipelineBindPoint pipelineBindPoint {};
 	uint32_t inputAttachmentCount {};
@@ -1526,8 +1474,8 @@ struct SubpassDescription
 	operator const VkSubpassDescription&() const { return vkHandle(); };
 	operator VkSubpassDescription&() { return vkHandle(); };
 };
-struct SubpassDependency
-{
+
+struct SubpassDependency {
 	uint32_t srcSubpass {};
 	uint32_t dstSubpass {};
 	PipelineStageFlags srcStageMask {};
@@ -1542,8 +1490,8 @@ struct SubpassDependency
 	operator const VkSubpassDependency&() const { return vkHandle(); };
 	operator VkSubpassDependency&() { return vkHandle(); };
 };
-struct RenderPassCreateInfo
-{
+
+struct RenderPassCreateInfo {
 	StructureType sType {StructureType::renderPassCreateInfo};
 	const void* pNext {};
 	RenderPassCreateFlags flags {};
@@ -1562,8 +1510,8 @@ struct RenderPassCreateInfo
 	operator const VkRenderPassCreateInfo&() const { return vkHandle(); };
 	operator VkRenderPassCreateInfo&() { return vkHandle(); };
 };
-struct CommandPoolCreateInfo
-{
+
+struct CommandPoolCreateInfo {
 	StructureType sType {StructureType::commandPoolCreateInfo};
 	const void* pNext {};
 	CommandPoolCreateFlags flags {};
@@ -1577,8 +1525,8 @@ struct CommandPoolCreateInfo
 	operator const VkCommandPoolCreateInfo&() const { return vkHandle(); };
 	operator VkCommandPoolCreateInfo&() { return vkHandle(); };
 };
-struct CommandBufferAllocateInfo
-{
+
+struct CommandBufferAllocateInfo {
 	StructureType sType {StructureType::commandBufferAllocateInfo};
 	const void* pNext {};
 	CommandPool commandPool {};
@@ -1593,8 +1541,8 @@ struct CommandBufferAllocateInfo
 	operator const VkCommandBufferAllocateInfo&() const { return vkHandle(); };
 	operator VkCommandBufferAllocateInfo&() { return vkHandle(); };
 };
-struct CommandBufferInheritanceInfo
-{
+
+struct CommandBufferInheritanceInfo {
 	StructureType sType {StructureType::commandBufferInheritanceInfo};
 	const void* pNext {};
 	RenderPass renderPass {};
@@ -1612,8 +1560,8 @@ struct CommandBufferInheritanceInfo
 	operator const VkCommandBufferInheritanceInfo&() const { return vkHandle(); };
 	operator VkCommandBufferInheritanceInfo&() { return vkHandle(); };
 };
-struct CommandBufferBeginInfo
-{
+
+struct CommandBufferBeginInfo {
 	StructureType sType {StructureType::commandBufferBeginInfo};
 	const void* pNext {};
 	CommandBufferUsageFlags flags {};
@@ -1627,8 +1575,8 @@ struct CommandBufferBeginInfo
 	operator const VkCommandBufferBeginInfo&() const { return vkHandle(); };
 	operator VkCommandBufferBeginInfo&() { return vkHandle(); };
 };
-struct BufferCopy
-{
+
+struct BufferCopy {
 	DeviceSize srcOffset {};
 	DeviceSize dstOffset {};
 	DeviceSize size {};
@@ -1639,8 +1587,8 @@ struct BufferCopy
 	operator const VkBufferCopy&() const { return vkHandle(); };
 	operator VkBufferCopy&() { return vkHandle(); };
 };
-struct ImageSubresourceLayers
-{
+
+struct ImageSubresourceLayers {
 	ImageAspectFlags aspectMask {};
 	uint32_t mipLevel {};
 	uint32_t baseArrayLayer {};
@@ -1652,8 +1600,8 @@ struct ImageSubresourceLayers
 	operator const VkImageSubresourceLayers&() const { return vkHandle(); };
 	operator VkImageSubresourceLayers&() { return vkHandle(); };
 };
-struct ImageCopy
-{
+
+struct ImageCopy {
 	ImageSubresourceLayers srcSubresource {};
 	Offset3D srcOffset {};
 	ImageSubresourceLayers dstSubresource {};
@@ -1666,8 +1614,8 @@ struct ImageCopy
 	operator const VkImageCopy&() const { return vkHandle(); };
 	operator VkImageCopy&() { return vkHandle(); };
 };
-struct ImageBlit
-{
+
+struct ImageBlit {
 	ImageSubresourceLayers srcSubresource {};
 	std::array<Offset3D, 2> srcOffsets {};
 	ImageSubresourceLayers dstSubresource {};
@@ -1679,8 +1627,8 @@ struct ImageBlit
 	operator const VkImageBlit&() const { return vkHandle(); };
 	operator VkImageBlit&() { return vkHandle(); };
 };
-struct BufferImageCopy
-{
+
+struct BufferImageCopy {
 	DeviceSize bufferOffset {};
 	uint32_t bufferRowLength {};
 	uint32_t bufferImageHeight {};
@@ -1694,8 +1642,8 @@ struct BufferImageCopy
 	operator const VkBufferImageCopy&() const { return vkHandle(); };
 	operator VkBufferImageCopy&() { return vkHandle(); };
 };
-union ClearColorValue
-{
+
+union ClearColorValue {
 	std::array<float, 4> float32 {};
 	std::array<int32_t, 4> int32;
 	std::array<uint32_t, 4> uint32;
@@ -1706,8 +1654,8 @@ union ClearColorValue
 	operator const VkClearColorValue&() const { return vkHandle(); };
 	operator VkClearColorValue&() { return vkHandle(); };
 };
-struct ClearDepthStencilValue
-{
+
+struct ClearDepthStencilValue {
 	float depth {};
 	uint32_t stencil {};
 
@@ -1717,8 +1665,8 @@ struct ClearDepthStencilValue
 	operator const VkClearDepthStencilValue&() const { return vkHandle(); };
 	operator VkClearDepthStencilValue&() { return vkHandle(); };
 };
-union ClearValue
-{
+
+union ClearValue {
 	ClearColorValue color {};
 	ClearDepthStencilValue depthStencil;
 
@@ -1728,8 +1676,8 @@ union ClearValue
 	operator const VkClearValue&() const { return vkHandle(); };
 	operator VkClearValue&() { return vkHandle(); };
 };
-struct ClearAttachment
-{
+
+struct ClearAttachment {
 	ImageAspectFlags aspectMask {};
 	uint32_t colorAttachment {};
 	ClearValue clearValue {};
@@ -1740,8 +1688,8 @@ struct ClearAttachment
 	operator const VkClearAttachment&() const { return vkHandle(); };
 	operator VkClearAttachment&() { return vkHandle(); };
 };
-struct ClearRect
-{
+
+struct ClearRect {
 	Rect2D rect {};
 	uint32_t baseArrayLayer {};
 	uint32_t layerCount {};
@@ -1752,8 +1700,8 @@ struct ClearRect
 	operator const VkClearRect&() const { return vkHandle(); };
 	operator VkClearRect&() { return vkHandle(); };
 };
-struct ImageResolve
-{
+
+struct ImageResolve {
 	ImageSubresourceLayers srcSubresource {};
 	Offset3D srcOffset {};
 	ImageSubresourceLayers dstSubresource {};
@@ -1766,8 +1714,8 @@ struct ImageResolve
 	operator const VkImageResolve&() const { return vkHandle(); };
 	operator VkImageResolve&() { return vkHandle(); };
 };
-struct MemoryBarrier
-{
+
+struct MemoryBarrier {
 	StructureType sType {StructureType::memoryBarrier};
 	const void* pNext {};
 	AccessFlags srcAccessMask {};
@@ -1781,8 +1729,8 @@ struct MemoryBarrier
 	operator const VkMemoryBarrier&() const { return vkHandle(); };
 	operator VkMemoryBarrier&() { return vkHandle(); };
 };
-struct BufferMemoryBarrier
-{
+
+struct BufferMemoryBarrier {
 	StructureType sType {StructureType::bufferMemoryBarrier};
 	const void* pNext {};
 	AccessFlags srcAccessMask {};
@@ -1801,8 +1749,8 @@ struct BufferMemoryBarrier
 	operator const VkBufferMemoryBarrier&() const { return vkHandle(); };
 	operator VkBufferMemoryBarrier&() { return vkHandle(); };
 };
-struct ImageMemoryBarrier
-{
+
+struct ImageMemoryBarrier {
 	StructureType sType {StructureType::imageMemoryBarrier};
 	const void* pNext {};
 	AccessFlags srcAccessMask {};
@@ -1822,8 +1770,8 @@ struct ImageMemoryBarrier
 	operator const VkImageMemoryBarrier&() const { return vkHandle(); };
 	operator VkImageMemoryBarrier&() { return vkHandle(); };
 };
-struct RenderPassBeginInfo
-{
+
+struct RenderPassBeginInfo {
 	StructureType sType {StructureType::renderPassBeginInfo};
 	const void* pNext {};
 	RenderPass renderPass {};
@@ -1840,8 +1788,8 @@ struct RenderPassBeginInfo
 	operator const VkRenderPassBeginInfo&() const { return vkHandle(); };
 	operator VkRenderPassBeginInfo&() { return vkHandle(); };
 };
-struct DispatchIndirectCommand
-{
+
+struct DispatchIndirectCommand {
 	uint32_t x {};
 	uint32_t y {};
 	uint32_t z {};
@@ -1852,8 +1800,8 @@ struct DispatchIndirectCommand
 	operator const VkDispatchIndirectCommand&() const { return vkHandle(); };
 	operator VkDispatchIndirectCommand&() { return vkHandle(); };
 };
-struct DrawIndexedIndirectCommand
-{
+
+struct DrawIndexedIndirectCommand {
 	uint32_t indexCount {};
 	uint32_t instanceCount {};
 	uint32_t firstIndex {};
@@ -1866,8 +1814,8 @@ struct DrawIndexedIndirectCommand
 	operator const VkDrawIndexedIndirectCommand&() const { return vkHandle(); };
 	operator VkDrawIndexedIndirectCommand&() { return vkHandle(); };
 };
-struct DrawIndirectCommand
-{
+
+struct DrawIndirectCommand {
 	uint32_t vertexCount {};
 	uint32_t instanceCount {};
 	uint32_t firstVertex {};
@@ -1880,8 +1828,8 @@ struct DrawIndirectCommand
 	operator VkDrawIndirectCommand&() { return vkHandle(); };
 };
 
-struct SurfaceCapabilitiesKHR
-{
+
+struct SurfaceCapabilitiesKHR {
 	uint32_t minImageCount {};
 	uint32_t maxImageCount {};
 	Extent2D currentExtent {};
@@ -1899,8 +1847,8 @@ struct SurfaceCapabilitiesKHR
 	operator const VkSurfaceCapabilitiesKHR&() const { return vkHandle(); };
 	operator VkSurfaceCapabilitiesKHR&() { return vkHandle(); };
 };
-struct SurfaceFormatKHR
-{
+
+struct SurfaceFormatKHR {
 	Format format {};
 	ColorSpaceKHR colorSpace {};
 
@@ -1911,8 +1859,8 @@ struct SurfaceFormatKHR
 	operator VkSurfaceFormatKHR&() { return vkHandle(); };
 };
 
-struct SwapchainCreateInfoKHR
-{
+
+struct SwapchainCreateInfoKHR {
 	StructureType sType {StructureType::swapchainCreateInfoKHR};
 	const void* pNext {};
 	SwapchainCreateFlagsKHR flags {};
@@ -1940,8 +1888,8 @@ struct SwapchainCreateInfoKHR
 	operator const VkSwapchainCreateInfoKHR&() const { return vkHandle(); };
 	operator VkSwapchainCreateInfoKHR&() { return vkHandle(); };
 };
-struct PresentInfoKHR
-{
+
+struct PresentInfoKHR {
 	StructureType sType {StructureType::presentInfoKHR};
 	const void* pNext {};
 	uint32_t waitSemaphoreCount {};
@@ -1960,8 +1908,8 @@ struct PresentInfoKHR
 	operator VkPresentInfoKHR&() { return vkHandle(); };
 };
 
-struct DisplayPropertiesKHR
-{
+
+struct DisplayPropertiesKHR {
 	DisplayKHR display {};
 	const char* displayName {};
 	Extent2D physicalDimensions {};
@@ -1976,8 +1924,8 @@ struct DisplayPropertiesKHR
 	operator const VkDisplayPropertiesKHR&() const { return vkHandle(); };
 	operator VkDisplayPropertiesKHR&() { return vkHandle(); };
 };
-struct DisplayModeParametersKHR
-{
+
+struct DisplayModeParametersKHR {
 	Extent2D visibleRegion {};
 	uint32_t refreshRate {};
 
@@ -1987,8 +1935,8 @@ struct DisplayModeParametersKHR
 	operator const VkDisplayModeParametersKHR&() const { return vkHandle(); };
 	operator VkDisplayModeParametersKHR&() { return vkHandle(); };
 };
-struct DisplayModePropertiesKHR
-{
+
+struct DisplayModePropertiesKHR {
 	DisplayModeKHR displayMode {};
 	DisplayModeParametersKHR parameters {};
 
@@ -1998,8 +1946,8 @@ struct DisplayModePropertiesKHR
 	operator const VkDisplayModePropertiesKHR&() const { return vkHandle(); };
 	operator VkDisplayModePropertiesKHR&() { return vkHandle(); };
 };
-struct DisplayModeCreateInfoKHR
-{
+
+struct DisplayModeCreateInfoKHR {
 	StructureType sType {StructureType::displayModeCreateInfoKHR};
 	const void* pNext {};
 	DisplayModeCreateFlagsKHR flags {};
@@ -2013,8 +1961,8 @@ struct DisplayModeCreateInfoKHR
 	operator const VkDisplayModeCreateInfoKHR&() const { return vkHandle(); };
 	operator VkDisplayModeCreateInfoKHR&() { return vkHandle(); };
 };
-struct DisplayPlaneCapabilitiesKHR
-{
+
+struct DisplayPlaneCapabilitiesKHR {
 	DisplayPlaneAlphaFlagsKHR supportedAlpha {};
 	Offset2D minSrcPosition {};
 	Offset2D maxSrcPosition {};
@@ -2031,8 +1979,8 @@ struct DisplayPlaneCapabilitiesKHR
 	operator const VkDisplayPlaneCapabilitiesKHR&() const { return vkHandle(); };
 	operator VkDisplayPlaneCapabilitiesKHR&() { return vkHandle(); };
 };
-struct DisplayPlanePropertiesKHR
-{
+
+struct DisplayPlanePropertiesKHR {
 	DisplayKHR currentDisplay {};
 	uint32_t currentStackIndex {};
 
@@ -2042,8 +1990,8 @@ struct DisplayPlanePropertiesKHR
 	operator const VkDisplayPlanePropertiesKHR&() const { return vkHandle(); };
 	operator VkDisplayPlanePropertiesKHR&() { return vkHandle(); };
 };
-struct DisplaySurfaceCreateInfoKHR
-{
+
+struct DisplaySurfaceCreateInfoKHR {
 	StructureType sType {StructureType::displaySurfaceCreateInfoKHR};
 	const void* pNext {};
 	DisplaySurfaceCreateFlagsKHR flags {};
@@ -2064,8 +2012,8 @@ struct DisplaySurfaceCreateInfoKHR
 	operator VkDisplaySurfaceCreateInfoKHR&() { return vkHandle(); };
 };
 
-struct DisplayPresentInfoKHR
-{
+
+struct DisplayPresentInfoKHR {
 	StructureType sType {StructureType::displayPresentInfoKHR};
 	const void* pNext {};
 	Rect2D srcRect {};
@@ -2081,10 +2029,10 @@ struct DisplayPresentInfoKHR
 	operator VkDisplayPresentInfoKHR&() { return vkHandle(); };
 };
 
+
 #ifdef VK_USE_PLATFORM_XLIB_KHR
 
-struct XlibSurfaceCreateInfoKHR
-{
+struct XlibSurfaceCreateInfoKHR {
 	StructureType sType {StructureType::xlibSurfaceCreateInfoKHR};
 	const void* pNext {};
 	XlibSurfaceCreateFlagsKHR flags {};
@@ -2100,12 +2048,12 @@ struct XlibSurfaceCreateInfoKHR
 	operator VkXlibSurfaceCreateInfoKHR&() { return vkHandle(); };
 };
 
+
 #endif //VK_USE_PLATFORM_XLIB_KHR
 
 #ifdef VK_USE_PLATFORM_XCB_KHR
 
-struct XcbSurfaceCreateInfoKHR
-{
+struct XcbSurfaceCreateInfoKHR {
 	StructureType sType {StructureType::xcbSurfaceCreateInfoKHR};
 	const void* pNext {};
 	XcbSurfaceCreateFlagsKHR flags {};
@@ -2121,12 +2069,12 @@ struct XcbSurfaceCreateInfoKHR
 	operator VkXcbSurfaceCreateInfoKHR&() { return vkHandle(); };
 };
 
+
 #endif //VK_USE_PLATFORM_XCB_KHR
 
 #ifdef VK_USE_PLATFORM_WAYLAND_KHR
 
-struct WaylandSurfaceCreateInfoKHR
-{
+struct WaylandSurfaceCreateInfoKHR {
 	StructureType sType {StructureType::waylandSurfaceCreateInfoKHR};
 	const void* pNext {};
 	WaylandSurfaceCreateFlagsKHR flags {};
@@ -2142,12 +2090,12 @@ struct WaylandSurfaceCreateInfoKHR
 	operator VkWaylandSurfaceCreateInfoKHR&() { return vkHandle(); };
 };
 
+
 #endif //VK_USE_PLATFORM_WAYLAND_KHR
 
 #ifdef VK_USE_PLATFORM_MIR_KHR
 
-struct MirSurfaceCreateInfoKHR
-{
+struct MirSurfaceCreateInfoKHR {
 	StructureType sType {StructureType::mirSurfaceCreateInfoKHR};
 	const void* pNext {};
 	MirSurfaceCreateFlagsKHR flags {};
@@ -2163,12 +2111,12 @@ struct MirSurfaceCreateInfoKHR
 	operator VkMirSurfaceCreateInfoKHR&() { return vkHandle(); };
 };
 
+
 #endif //VK_USE_PLATFORM_MIR_KHR
 
 #ifdef VK_USE_PLATFORM_ANDROID_KHR
 
-struct AndroidSurfaceCreateInfoKHR
-{
+struct AndroidSurfaceCreateInfoKHR {
 	StructureType sType {StructureType::androidSurfaceCreateInfoKHR};
 	const void* pNext {};
 	AndroidSurfaceCreateFlagsKHR flags {};
@@ -2183,12 +2131,12 @@ struct AndroidSurfaceCreateInfoKHR
 	operator VkAndroidSurfaceCreateInfoKHR&() { return vkHandle(); };
 };
 
+
 #endif //VK_USE_PLATFORM_ANDROID_KHR
 
 #ifdef VK_USE_PLATFORM_WIN32_KHR
 
-struct Win32SurfaceCreateInfoKHR
-{
+struct Win32SurfaceCreateInfoKHR {
 	StructureType sType {StructureType::win32SurfaceCreateInfoKHR};
 	const void* pNext {};
 	Win32SurfaceCreateFlagsKHR flags {};
@@ -2204,10 +2152,10 @@ struct Win32SurfaceCreateInfoKHR
 	operator VkWin32SurfaceCreateInfoKHR&() { return vkHandle(); };
 };
 
+
 #endif //VK_USE_PLATFORM_WIN32_KHR
 
-struct DebugReportCallbackCreateInfoEXT
-{
+struct DebugReportCallbackCreateInfoEXT {
 	StructureType sType {StructureType::debugReportCallbackCreateInfoEXT};
 	const void* pNext {};
 	DebugReportFlagsEXT flags {};
@@ -2223,8 +2171,8 @@ struct DebugReportCallbackCreateInfoEXT
 	operator VkDebugReportCallbackCreateInfoEXT&() { return vkHandle(); };
 };
 
-struct PipelineRasterizationStateRasterizationOrderAMD
-{
+
+struct PipelineRasterizationStateRasterizationOrderAMD {
 	StructureType sType {StructureType::pipelineRasterizationStateRasterizationOrderAMD};
 	const void* pNext {};
 	RasterizationOrderAMD rasterizationOrder {};
@@ -2238,8 +2186,8 @@ struct PipelineRasterizationStateRasterizationOrderAMD
 	operator VkPipelineRasterizationStateRasterizationOrderAMD&() { return vkHandle(); };
 };
 
-struct DebugMarkerObjectNameInfoEXT
-{
+
+struct DebugMarkerObjectNameInfoEXT {
 	StructureType sType {StructureType::debugMarkerObjectNameInfoEXT};
 	const void* pNext {};
 	DebugReportObjectTypeEXT objectType {};
@@ -2254,8 +2202,8 @@ struct DebugMarkerObjectNameInfoEXT
 	operator const VkDebugMarkerObjectNameInfoEXT&() const { return vkHandle(); };
 	operator VkDebugMarkerObjectNameInfoEXT&() { return vkHandle(); };
 };
-struct DebugMarkerObjectTagInfoEXT
-{
+
+struct DebugMarkerObjectTagInfoEXT {
 	StructureType sType {StructureType::debugMarkerObjectTagInfoEXT};
 	const void* pNext {};
 	DebugReportObjectTypeEXT objectType {};
@@ -2272,8 +2220,8 @@ struct DebugMarkerObjectTagInfoEXT
 	operator const VkDebugMarkerObjectTagInfoEXT&() const { return vkHandle(); };
 	operator VkDebugMarkerObjectTagInfoEXT&() { return vkHandle(); };
 };
-struct DebugMarkerMarkerInfoEXT
-{
+
+struct DebugMarkerMarkerInfoEXT {
 	StructureType sType {StructureType::debugMarkerMarkerInfoEXT};
 	const void* pNext {};
 	const char* pMarkerName {};
@@ -2289,5 +2237,84 @@ struct DebugMarkerMarkerInfoEXT
 };
 
 
+struct DedicatedAllocationImageCreateInfoNV {
+	StructureType sType {StructureType::dedicatedAllocationImageCreateInfoNV};
+	const void* pNext {};
+	Bool32 dedicatedAllocation {};
 
-} //namespace vk
+	DedicatedAllocationImageCreateInfoNV(Bool32 xdedicatedAllocation = {}) : dedicatedAllocation(xdedicatedAllocation) {}
+
+	const VkDedicatedAllocationImageCreateInfoNV& vkHandle() const { return reinterpret_cast<const VkDedicatedAllocationImageCreateInfoNV&>(*this); }
+	VkDedicatedAllocationImageCreateInfoNV& vkHandle() { return reinterpret_cast<VkDedicatedAllocationImageCreateInfoNV&>(*this); }
+
+	operator const VkDedicatedAllocationImageCreateInfoNV&() const { return vkHandle(); };
+	operator VkDedicatedAllocationImageCreateInfoNV&() { return vkHandle(); };
+};
+
+struct DedicatedAllocationBufferCreateInfoNV {
+	StructureType sType {StructureType::dedicatedAllocationBufferCreateInfoNV};
+	const void* pNext {};
+	Bool32 dedicatedAllocation {};
+
+	DedicatedAllocationBufferCreateInfoNV(Bool32 xdedicatedAllocation = {}) : dedicatedAllocation(xdedicatedAllocation) {}
+
+	const VkDedicatedAllocationBufferCreateInfoNV& vkHandle() const { return reinterpret_cast<const VkDedicatedAllocationBufferCreateInfoNV&>(*this); }
+	VkDedicatedAllocationBufferCreateInfoNV& vkHandle() { return reinterpret_cast<VkDedicatedAllocationBufferCreateInfoNV&>(*this); }
+
+	operator const VkDedicatedAllocationBufferCreateInfoNV&() const { return vkHandle(); };
+	operator VkDedicatedAllocationBufferCreateInfoNV&() { return vkHandle(); };
+};
+
+struct DedicatedAllocationMemoryAllocateInfoNV {
+	StructureType sType {StructureType::dedicatedAllocationMemoryAllocateInfoNV};
+	const void* pNext {};
+	Image image {};
+	Buffer buffer {};
+
+	DedicatedAllocationMemoryAllocateInfoNV(Image ximage = {}, Buffer xbuffer = {}) : image(ximage), buffer(xbuffer) {}
+
+	const VkDedicatedAllocationMemoryAllocateInfoNV& vkHandle() const { return reinterpret_cast<const VkDedicatedAllocationMemoryAllocateInfoNV&>(*this); }
+	VkDedicatedAllocationMemoryAllocateInfoNV& vkHandle() { return reinterpret_cast<VkDedicatedAllocationMemoryAllocateInfoNV&>(*this); }
+
+	operator const VkDedicatedAllocationMemoryAllocateInfoNV&() const { return vkHandle(); };
+	operator VkDedicatedAllocationMemoryAllocateInfoNV&() { return vkHandle(); };
+};
+
+
+
+
+} // namespace vk
+
+// The specification (vk.xml) itself is protected by the following license:
+
+// Copyright (c) 2015-2016 The Khronos Group Inc.
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and/or associated documentation files (the
+// "Materials"), to deal in the Materials without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Materials, and to
+// permit persons to whom the Materials are furnished to do so, subject to
+// the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Materials.
+// 
+// THE MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+// CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+// MATERIALS OR THE USE OR OTHER DEALINGS IN THE MATERIALS.
+// 
+// ------------------------------------------------------------------------
+// 
+// This file, vk.xml, is the Vulkan API Registry. It is a critically important
+// and normative part of the Vulkan Specification, including a canonical
+// machine-readable definition of the API, parameter and member validation
+// language incorporated into the Specification and reference pages, and other
+// material which is registered by Khronos, such as tags used by extension and
+// layer authors. The only authoritative version of vk.xml is the one
+// maintained in the master branch of the Khronos Vulkan Github project.
+    

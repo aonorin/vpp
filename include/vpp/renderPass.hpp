@@ -1,25 +1,28 @@
+// Copyright (c) 2017 nyorain
+// Distributed under the Boost Software License, Version 1.0.
+// See accompanying file LICENSE or copy at http://www.boost.org/LICENSE_1_0.txt
+
 #pragma once
 
 #include <vpp/fwd.hpp>
 #include <vpp/resource.hpp>
+#include <vpp/util/nonCopyable.hpp>
 
 #include <vector>
 
-namespace vpp
-{
+namespace vpp {
 
-///Vulkan Renderpass. Can be created just from a vulkan device.
-///Stores its description information.
-class RenderPass : public ResourceHandle<vk::RenderPass>
-{
+/// RAII Vulkan Renderpass wrapper.
+/// Stores its description information.
+class RenderPass : public ResourceHandle<vk::RenderPass> {
 public:
 	RenderPass() = default;
 	RenderPass(const Device& dev, const vk::RenderPassCreateInfo& info);
 	RenderPass(const Device& dev, vk::RenderPass pass, const vk::RenderPassCreateInfo& info);
 	~RenderPass();
 
-	RenderPass(RenderPass&& other) noexcept = default;
-	RenderPass& operator=(RenderPass&& other) noexcept = default;
+	RenderPass(RenderPass&& lhs) noexcept { swap(lhs); }
+	RenderPass& operator=(RenderPass&& lhs) noexcept { swap(lhs); return *this; }
 
 	const std::vector<vk::AttachmentDescription>& attachments() const { return attachments_; }
 	const std::vector<vk::SubpassDependency>& dependencies() const { return dependencies_; }
@@ -33,11 +36,8 @@ protected:
 	std::vector<vk::AttachmentReference> references_;
 };
 
-//XXX: class at the moment not useful, can later be used for addtional features/checks
-//XXX: if without additional stuff, at least make it a struct with public members.
-///Vulkan RenderPass Instance, i.e. a commandbuffer recording session during a render pass.
-class RenderPassInstance : public NonCopyable
-{
+/// Vulkan RenderPass Instance, i.e. a commandbuffer recording session during a render pass.
+class RenderPassInstance : public nytl::NonCopyable {
 protected:
 	vk::RenderPass renderPass_ {};
 	vk::CommandBuffer commandBuffer_ {};
@@ -52,4 +52,4 @@ public:
 	const vk::Framebuffer& vkFramebuffer() const { return framebuffer_; }
 };
 
-}
+} // namespace vpp

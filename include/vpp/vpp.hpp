@@ -1,30 +1,26 @@
 #pragma once
 
-#include <vpp/utility/range.hpp>
-#include <vpp/utility/stringParam.hpp>
-#include <vpp/utility/debug.hpp>
-#include <vpp/utility/file.hpp>
-#include <vpp/utility/memory_resource.hpp>
-#include <vpp/utility/allocation.hpp>
+#include <vpp/util/span.hpp>
+#include <vpp/util/stringParam.hpp>
+#include <vpp/util/debug.hpp>
+#include <vpp/util/file.hpp>
+#include <vpp/util/allocation.hpp>
 
 #include <vpp/allocator.hpp>
 #include <vpp/buffer.hpp>
 #include <vpp/commandBuffer.hpp>
-#include <vpp/computePipeline.hpp>
-#include <vpp/context.hpp>
 #include <vpp/debug.hpp>
 #include <vpp/descriptor.hpp>
 #include <vpp/device.hpp>
 #include <vpp/framebuffer.hpp>
 #include <vpp/fwd.hpp>
-#include <vpp/graphicsPipeline.hpp>
 #include <vpp/image.hpp>
 #include <vpp/init.hpp>
 #include <vpp/memory.hpp>
+#include <vpp/memoryMap.hpp>
 #include <vpp/memoryResource.hpp>
 #include <vpp/pipeline.hpp>
 #include <vpp/procAddr.hpp>
-#include <vpp/provider.hpp>
 #include <vpp/queue.hpp>
 #include <vpp/renderer.hpp>
 #include <vpp/renderPass.hpp>
