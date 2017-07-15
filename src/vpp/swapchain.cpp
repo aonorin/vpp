@@ -8,7 +8,7 @@
 #include <vpp/queue.hpp>
 #include <vpp/surface.hpp>
 #include <vpp/image.hpp>
-#include <vpp/util/debug.hpp>
+#include <vpp/util/log.hpp>
 
 namespace vpp {
 namespace {
@@ -27,10 +27,10 @@ constexpr struct PresentModeRating {
 // performc the specifid error action for DefaultSwapchainSettings
 void onError(DefaultSwapchainSettings::ErrorAction action, const char* field)
 {
-	static const std::string errorMsg = "vpp::DefaultSwapchainSettings: using different ";
 	if(action == DefaultSwapchainSettings::ErrorAction::output)
-		warn(errorMsg, field);
+		vpp_warn("DefaultSwapchainSettings"_module, "using different {}", field);
 
+	static const std::string errorMsg = "vpp::DefaultSwapchainSettings: using different ";
 	if(action == DefaultSwapchainSettings::ErrorAction::throwException)
 		throw std::runtime_error(errorMsg + field);
 }
@@ -76,9 +76,9 @@ vk::SwapchainCreateInfoKHR SwapchainSettings::parse(const vk::SurfaceCapabilitie
 	// manually (using the given size)
 	if(caps.currentExtent.width == 0xFFFFFFFF && caps.currentExtent.height == 0xFFFFFFFF) {
 		ret.imageExtent = size;
-		VPP_DEBUG_CHECK("vpp::SwapchainSettings", {
+		dlg_check("SwapchainSettings", {
 			if(!size.width || !size.height)
-				VPP_CHECK_THROW("Invalid size will be set");
+				vpp_error("Invalid size will be set");
 		});
 	} else {
 		ret.imageExtent = caps.currentExtent;
@@ -165,8 +165,8 @@ vk::SwapchainCreateInfoKHR DefaultSwapchainSettings::parse(const vk::SurfaceCapa
 	// size as in basic implementation
 	if(caps.currentExtent.width == 0xFFFFFFFF && caps.currentExtent.height == 0xFFFFFFFF) {
 		ret.imageExtent = size;
-		VPP_DEBUG_CHECK("vpp::SwapchainSettings", {
-			if(!size.width || !size.height) VPP_CHECK_THROW("Invalid size will be set.");
+		dlg_check("SwapchainSettings", {
+			if(!size.width || !size.height) vpp_error("Invalid size will be set.");
 		});
 	} else {
 		ret.imageExtent = caps.currentExtent;
@@ -231,15 +231,17 @@ Swapchain::~Swapchain()
 	pfDestroySwapchainKHR(device(), vkHandle(), nullptr);
 }
 
-void Swapchain::swap(Swapchain& lhs) noexcept
+void swap(Swapchain& a, Swapchain& b) noexcept
 {
 	using std::swap;
-	swap(resourceBase(), lhs.resourceBase());
-	swap(surface_, lhs.surface_);
-	swap(buffers_, lhs.buffers_);
-	swap(width_, lhs.width_);
-	swap(height_, lhs.height_);
-	swap(format_, lhs.format_);
+	using RH = ResourceHandle<vk::SwapchainKHR>;
+
+	swap(static_cast<RH&>(a), static_cast<RH&>(b));
+	swap(a.surface_, b.surface_);
+	swap(a.buffers_, b.buffers_);
+	swap(a.width_, b.width_);
+	swap(a.height_, b.height_);
+	swap(a.format_, b.format_);
 }
 
 void Swapchain::createBuffers()
@@ -346,7 +348,7 @@ void Swapchain::resize(const vk::Extent2D& size, const SwapchainSettings& settin
 
 vk::Result Swapchain::acquire(unsigned int& id, vk::Semaphore sem, vk::Fence fence) const
 {
-	// TODO: handle out of date, correct sync, timeout...
+	// TODO: handle out of date, correct sync, timeout... (?)
 	VPP_LOAD_PROC(vkDevice(), AcquireNextImageKHR);
 
 	std::uint32_t id32;

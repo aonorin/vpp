@@ -73,8 +73,7 @@ public:
 		const vk::Extent2D& size) const override;
 };
 
-// TODO: valid usage checking for acquire commands. Handle acquire:out_of_date
-
+// TODO: valid usage checking for acquire commands. Handle acquire:out_of_date?
 /// Represents Vulkan swap chain and associated images/framebuffers.
 class Swapchain : public ResourceHandle<vk::SwapchainKHR> {
 public:
@@ -104,8 +103,8 @@ public:
 
 	~Swapchain();
 
-	Swapchain(Swapchain&& lhs) noexcept { swap(lhs); }
-	Swapchain& operator=(Swapchain&& lhs) noexcept { swap(lhs); return *this; }
+	Swapchain(Swapchain&& rhs) noexcept { swap(*this, rhs); }
+	Swapchain& operator=(Swapchain&& rhs) noexcept { swap(*this, rhs); return *this; }
 
 	/// Resizes the swapchain to the given size. Should be called if the native window of the
 	/// underlying surface handle changes it size to make sure the swapchain fills the
@@ -119,7 +118,7 @@ public:
 	/// Acquires the next swapchain image (i.e. the next render buffer).
 	/// \param sem Semaphore to be signaled when acquiring is complete or nullHandle.
 	/// \param fence Fence to be signaled when acquiring is complete or nullHandle.
-	/// \param id The id of the newly acquired image.
+	/// \param id Will be set to the id of the newly acquired image.
 	/// \return The result returned by vkAcquireImageKHR. The caller has to handle
 	/// results like outOfDate or suboptimal and can decide if to recreate (resize()) the
 	/// swapChain. There will not be any check performed on the result.
@@ -140,7 +139,7 @@ public:
 	vk::Extent2D size() const;
 	const std::vector<RenderBuffer>& renderBuffers() const { return buffers_; }
 
-	void swap(Swapchain& lhs) noexcept;
+	friend void swap(Swapchain& a, Swapchain& b) noexcept;
 
 protected:
 	void destroyBuffers();

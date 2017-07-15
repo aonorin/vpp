@@ -10,7 +10,7 @@
 #include <vpp/memoryMap.hpp>
 #include <vpp/util/span.hpp>
 #include <vpp/util/allocation.hpp>
-#include <vpp/bits/apply.inl>
+#include <vpp/util/tmp.hpp>
 
 namespace vpp {
 
@@ -53,11 +53,11 @@ public:
 	/// an object which will wrap it into a temporary RawBuffer object that can also be operated
 	/// on without any alignment or offsets.
 	template<typename T>
-	void addSingle(const T& obj);
+	void addSingle(T&& obj);
 
 	/// Utility function that calls addSingle for all ob the given objects.
 	template<typename... T>
-	void add(const T&... obj);
+	void add(T&&... obj);
 
 	/// Returns the current offset on the buffer.
 	constexpr std::size_t offset() const noexcept { return offset_; }
@@ -147,12 +147,22 @@ protected:
 	bool direct_ {};
 };
 
+/// Token used to explicit construct a BufferSizer without device only
+/// for compile-time computation.
+struct ConstexprBufferSizer {};
+constexpr ConstexprBufferSizer constexprBufferSizer;
+
 /// Can be used to calculate the size that would be needed to fit certain objects with certain
 /// alignments on a buffer.
 /// Alternative name: BufferSizeCalculator
 class BufferSizer : public BufferOperator<BufferSizer>, public Resource {
 public:
-	constexpr BufferSizer(BufferLayout layout) : BufferOperator(layout) {}
+	/// Constructs a compile-time instance of BufferSizer.
+	/// Cannot be used for dynamic alignment requirements like uniform, storage or texel.
+	constexpr BufferSizer(ConstexprBufferSizer, BufferLayout layout) : BufferOperator(layout) {}
+
+	/// Constructs a runtime instance of a BufferSizer.
+	/// Can be used for dynamic alignment requirements like uniform, storage or texel.
 	BufferSizer(const Device& dev, BufferLayout align) : BufferOperator(align), Resource(dev) {}
 	~BufferSizer() = default;
 
@@ -281,7 +291,7 @@ template<typename... T> WorkPtr read430(const Buffer& buf, T&... args)
 template<typename... T>
 std::size_t neededBufferSize(BufferLayout align, const T&... args)
 {
-	BufferSizer sizer(align);
+	BufferSizer sizer(constexprBufferSizer, align);
 	sizer.add(args...);
 	return sizer.offset();
 }
@@ -294,7 +304,7 @@ std::size_t neededBufferSize(BufferLayout align, const T&... args)
 template<typename... T>
 constexpr std::size_t neededBufferSize(BufferLayout align)
 {
-	BufferSizer sizer(align);
+	BufferSizer sizer(constexprBufferSizer, align);
 	sizer.add<T...>();
 	return sizer.offset();
 }

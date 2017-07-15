@@ -6,7 +6,7 @@
 #include <vpp/transfer.hpp> // vpp::TransferManager
 #include <vpp/transferWork.hpp> // vpp::transferWork
 #include <vpp/queue.hpp> // vpp::Queue
-#include <vpp/util/debug.hpp> // VPP_DEBUG_CHECK
+#include <vpp/util/log.hpp> // dlg_check
 #include <vpp/vk.hpp>
 
 #include <utility> // std::move, std::swap
@@ -116,8 +116,8 @@ DataWorkPtr retrieve(const Image& image, vk::ImageLayout& layout, vk::Format for
 	const vk::Extent3D& extent, const vk::ImageSubresource& subres, const vk::Offset3D& offset,
 	bool allowMap)
 {
-	VPP_DEBUG_CHECK("vpp::retrieve(image)", {
-		if(!image.memoryEntry().allocated()) VPP_CHECK_THROW("Image has no memory");
+	dlg_check("retrieve(image)", {
+		if(!image.memoryEntry().allocated()) vpp_error("Image has no memory");
 	})
 
 	if(image.mappable() && allowMap) {
@@ -336,12 +336,14 @@ ViewableImage::~ViewableImage()
 	if(vkImageView()) vk::destroyImageView(vkDevice(), vkImageView(), nullptr);
 }
 
-void ViewableImage::swap(ViewableImage& lhs) noexcept
+void swap(ViewableImage& a, ViewableImage& b) noexcept
 {
 	using std::swap;
-	swap(resourceBase(), lhs.resourceBase());
-	swap(image_, lhs.image_);
-	swap(imageView_, lhs.imageView_);
+	using RR = ResourceReference<ViewableImage>;
+
+	swap(static_cast<RR&>(a), static_cast<RR&>(b));
+	swap(a.image_, b.image_);
+	swap(a.imageView_, b.imageView_);
 }
 
 void ViewableImage::create(const Device& dev, const vk::ImageCreateInfo& info,

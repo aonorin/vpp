@@ -25,15 +25,18 @@ SwapchainRenderer::~SwapchainRenderer()
 {
 }
 
-void SwapchainRenderer::swap(SwapchainRenderer& lhs) noexcept
+void swap(SwapchainRenderer& a, SwapchainRenderer& b) noexcept
 {
 	using std::swap;
-	swap(resourceBase(), lhs.resourceBase());
-	swap(swapChain_, lhs.swapChain_);
-	swap(renderBuffers_, lhs.renderBuffers_);
-	swap(staticAttachments_, lhs.staticAttachments_);
-	swap(renderImpl_, lhs.renderImpl_);
-	swap(info_, lhs.info_);
+	using RR = ResourceReference<SwapchainRenderer>;
+
+	swap(static_cast<RR&>(a), static_cast<RR&>(b));
+
+	swap(a.swapChain_, b.swapChain_);
+	swap(a.renderBuffers_, b.renderBuffers_);
+	swap(a.staticAttachments_, b.staticAttachments_);
+	swap(a.renderImpl_, b.renderImpl_);
+	swap(a.info_, b.info_);
 }
 
 void SwapchainRenderer::create(const Swapchain& swapChain, const CreateInfo& info)
@@ -242,7 +245,7 @@ std::unique_ptr<Work<void>> SwapchainRenderer::render(const Queue& present, cons
 			try {
 				finish();
 			} catch(const std::exception& err) {
-				warn("vpp::SwapchainRenderer::render: Work::finish: ", err.what());
+				vpp_warn("::SwapchainRenderer::render"_src, "Work::finish: {}", err.what());
 			}
 		}
 
